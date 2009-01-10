@@ -7,6 +7,7 @@ use File::Util;
 use File::Path;
 use IO::Uncompress::Gunzip qw(gunzip $GunzipError);
 use Carp qw{croak confess carp};
+use Data::Dumper;
 
 #===============================================================================
 #    FILE:  File.pm
@@ -27,7 +28,7 @@ sub new {
         pdb_dir      => '',
         model_dir    => '',
         obsolete_dir => '',
-        cache_dir    => '', # tmp file directory
+        cache_dir    => '/tmp/pdb', # tmp file directory
         @_
     };
 
@@ -49,7 +50,7 @@ sub new {
 {
     my $caches = {};
     my ( $current_cache_size , $max_cache_size ) = ( 0 , 0 );
-    my ( $lxs , $mountpoint );
+    my ( $lxs , $diskname );
 #{{{ init_cache : initialize max_cache_size.
     sub init_cache {
         my $this = shift;
@@ -62,10 +63,10 @@ sub new {
             my $diskinfo = $lxs->get();
             my @candidates;
             while (my ($disk, $info) = each %{$diskinfo}) {
-                push @candidates, $info->{mountpoint} if ($this->cache_dir =~ /^$$info{mountpoint}/);
+                push @candidates, { disk => $disk, mp => $info->{mountpoint}} if ($this->cache_dir =~ /^$$info{mountpoint}/);
             }
-            $mountpoint = (sort { length($b) <=> length($a) } @candidates)[0];
-            $max_cache_size = $diskinfo->{$mountpoint}->{free} - 100000; # leave 10MB.
+            $diskname = (sort { length($b->{mp}) <=> length($a->{mp}) } @candidates)[0]->{disk};
+            $max_cache_size = $diskinfo->{$diskname}->{free} - 100000; # leave 10MB.
         }
         return 1;
     }
@@ -74,14 +75,14 @@ sub new {
     sub get_cache {
         my $this = shift;
         my $id = shift;
-        open my $fh , $caches->{$id} || croak "Failed to open file. : $!";
+        open my $fh, $caches->{$id} || croak "Failed to open file. : $!";
         return $fh;
     }
 #}}}
 #{{{ set_cache : set PDB File to cache direcotry
     sub set_cache {
         my $this = shift;
-        my ($id, $fh) = shift;
+        my ($id, $infh) = @_;
 
         check_disk_usage();
 
@@ -94,22 +95,38 @@ sub new {
                 my ($f, $m)  = each %$diag;
                 print "Failed to make directory : $m\n" if $f eq '';
             }
-        }
+			}
 
-        open my $out, ">$file_path" || croak "Failed to open file. : $!";
-        print $out while ( <$fh> );
-        $caches->{$id} = $file_path;
+			#print "Cache to $file_path\n";
+			#print Dumper $infh;
+
+			open my $out, ">$file_path" || croak "Failed to open file. : $!";
+			print $out $_ while (<$infh>);
+			$caches->{$id} = $file_path;
 
         # reload cache status
         $current_cache_size += ( stat ( $file_path ))[7];
-        
-        return 1;
+        open my $returnfh, $file_path || croak "Failed to open file. : $!";
+
+        return $returnfh;
     }
 #}}}
 #{{{ exists_in_cache : test id exists in cache.
     sub exists_in_cache {
         my $this = shift;
-        return ( defined $caches->{+(shift)} );
+		  my $id = shift;
+		  if (defined $caches->{$id}) {
+		 		return 1; 
+		  }
+		  else {
+			  my $cache_path = File::Spec->join($this->cache_dir, $this->directory_name_for($id) , $this->file_name_for($id));
+			  #print "Find : $cache_path\n";
+			  if (-f $cache_path) {
+				  $caches->{$id} = $cache_path;
+				  return 1;
+			  }
+		  }
+		  return 0;
     }
 #}}}
 #{{{ check_disk_usage : check disk usage and decrease filecache.
@@ -136,7 +153,7 @@ sub new {
 # get_as_object : get PDB data. #{{{
 sub get_as_object {
     my $this = shift;
-    my $id = shift;
+    my $id = lc shift;
     my %args_pdb = @_;
 
     if ($this->exists_in_cache($id)) {
@@ -148,17 +165,17 @@ sub get_as_object {
         my $file_path    = File::Spec->join($this->cache_dir, $dir, $this->file_name_for($id));
 
         my $fh;
-        for my $category ( $this->archive_dir, $this->model_dir, $this->obsolete_dir ) {
+        for my $category ( $this->pdb_dir, $this->model_dir, $this->obsolete_dir ) {
             my $path = File::Spec->join( $category, $dir, $this->archive_name_for($id));
             if (-f $path) {
-                $fh = IO::Uncompress::Gunzip->new($path) || die "$GunzipError $!";
+                $fh = IO::Uncompress::Gunzip->new($path) or die "GunzipError : $GunzipError";
                 last;
             }
         }
 
         if ($fh) {
-            $this->set_cache($id, $fh);
-            return Bio::PDB->new($fh, %args_pdb);       
+			  $this->set_cache($id, $fh);
+			  return Bio::PDB->new($fh, %args_pdb);       
         }
         else {
             return 0;
@@ -169,17 +186,32 @@ sub get_as_object {
  #{{{ get_as_filehandle : get PDB data as filehandle.
  sub get_as_filehandle {
     my $this = shift;
-    my $id = shift;
+    my $id = lc shift;
 
     if ($this->exists_in_cache($id)) {
-        return $this->get_cache($id);
+		 #print "get from cache\n";
+       return $this->get_cache($id);
     }
     else {
+		 #print "get from archive\n";
         my $dir = $this->directory_name_for($id);
-        my $archive_path = File::Spec->join($this->pdb_dir, $dir, $this->archive_name_for($id));
-        my $fh = IO::Uncompress::Gunzip->new($archive_path) || die "$GunzipError";
-        $this->set_cache($id, $fh);
-        return $fh;
+
+        my $fh;
+        for my $category ( $this->pdb_dir, $this->model_dir, $this->obsolete_dir ) {
+            my $path = File::Spec->join( $category, $dir, $this->archive_name_for($id));
+            if (-f $path) {
+                $fh = IO::Uncompress::Gunzip->new($path) or die "GunzipError : $GunzipError";
+                last;
+            }
+        }
+
+		  if ($fh) {
+			  return $this->set_cache($id, $fh);
+        }
+        else {
+            return 0;
+        }
+
     }
 }
 #}}}
@@ -190,11 +222,13 @@ sub init_database {
     {
         no strict 'refs';
 
-        for my $dir (qw{pdb_dir model_dir obsolete_dir cache_dir}) {
-            unless (-d $this->$dir) {
-                croak $! unless (mkdir $this->$dir);
-            }
-        }
+		  for my $dir (qw{pdb_dir model_dir obsolete_dir cache_dir}) {
+			  my $dpath = $this->$dir;
+			  next if ! defined $dpath or $dpath =~ /(?:^\s|^$)/;
+			  unless ( -d $this->$dir ) {
+				  croak "init_database :[$dpath]  $!" unless (mkdir $this->$dir);
+			  }
+		  }
     }
 
     return 1;
@@ -231,3 +265,7 @@ sub download {
 }
 
 #}}}
+
+1;
+
+__END__

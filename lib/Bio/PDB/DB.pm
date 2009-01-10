@@ -32,19 +32,20 @@ sub create_random_id {
 
 sub directory_name_for {
     my $this = shift;
-    my $id = shift;
-    lc $id;
+    my $id = lc shift;
     return substr($id, 1, 2);
 }
 
 sub file_name_for {
     my $this = shift;
-    my $id = shift;
+    my $id = lc shift;
     return qq[pdb${id}.ent];
 }
 
 sub archive_name_for {
     my $this = shift;
-    my $id = shift;
+    my $id = lc shift;
     return qq[pdb${id}.ent.gz];
 }
+
+1;
