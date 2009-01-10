@@ -14,6 +14,7 @@ use Carp qw{croak confess carp};
 # VERSION:  1.0
 # CREATED:  2009/01/09 17時10分14秒 JST
 # TODO :
+#         * obsolete and model check.
 #         * Log4Perl in $this->logger
 #===============================================================================
 
@@ -27,7 +28,6 @@ sub new {
         model_dir    => '',
         obsolete_dir => '',
         cache_dir    => '', # tmp file directory
-        download     => 0 ,
         @_
     };
 
@@ -38,7 +38,7 @@ sub new {
     $this->cache_dir($options->{'cache_dir'});
     $this->obsolete_dir($options->{'obsolete_dir'});
 
-    $this->init_database($options->{'download'});
+    $this->init_database();
 
     $this->init_cache;
 
@@ -112,14 +112,6 @@ sub new {
         return ( defined $caches->{+(shift)} );
     }
 #}}}
-#    sub decrease_cache { # deplecated.
-#        my $number_of_remove_files = 10;
-#        for my $id (( keys %{$caches} )[1..$number_of_remove_files]) {
-#            unlink $caches->{$id};
-#            delete $caches->{$id};
-#        }
-#        return 1;
-#    }
 #{{{ check_disk_usage : check disk usage and decrease filecache.
     sub check_disk_usage {
         if ( $max_cache_size * 0.95 < $current_cache_size ) {
@@ -141,7 +133,7 @@ sub new {
     }
 }
 #}}}
-# get_as_object : get PDB data.#{{{
+# get_as_object : get PDB data. #{{{
 sub get_as_object {
     my $this = shift;
     my $id = shift;
@@ -155,9 +147,22 @@ sub get_as_object {
         my $archive_path = File::Spec->join($this->pdb_dir, $dir, $this->archive_name_for($id));
         my $file_path    = File::Spec->join($this->cache_dir, $dir, $this->file_name_for($id));
 
-        my $fh = IO::Uncompress::Gunzip->new($archive_path) || die "$GunzipError";
-        $this->set_cache($id, $fh);
-        return Bio::PDB->new($fh, %args_pdb);
+        my $fh;
+        for my $category ( $this->archive_dir, $this->model_dir, $this->obsolete_dir ) {
+            my $path = File::Spec->join( $category, $dir, $this->archive_name_for($id));
+            if (-f $path) {
+                $fh = IO::Uncompress::Gunzip->new($path) || die "$GunzipError $!";
+                last;
+            }
+        }
+
+        if ($fh) {
+            $this->set_cache($id, $fh);
+            return Bio::PDB->new($fh, %args_pdb);       
+        }
+        else {
+            return 0;
+        }
     }
 }
 #}}}
@@ -181,7 +186,6 @@ sub get_as_object {
 #{{{ init_database : initialization of database
 sub init_database {
     my $this = shift;
-    my $down = ( shift ) || 0;
 
     {
         no strict 'refs';
@@ -193,8 +197,6 @@ sub init_database {
         }
     }
 
-    $this->download if $down;
-    
     return 1;
 }
 #}}}
@@ -204,7 +206,7 @@ sub init_database {
 # 
 # # You should NOT CHANGE THE NEXT TWO LINES
 # 
-# SERVER=rsync.wwpdb.org                                # remote server name
+# SERVER=rsync.wwpdb.org                               # remote server name
 # PORT=33444                                           # port remote server is using
 # 
 # ${RSYNC} -rlpt -v -z --delete --port=$PORT $SERVER::ftp_data/structures/divided/pdb/ $MIRRORDIR > $LOGFILE 3>/dev/null
@@ -213,14 +215,17 @@ sub init_database {
 sub download {
     my $this = shift;
     my $rsync = qx/which rsync/;
+    my $opt = { server => 'rsync.wwpdb.org', port => 33444, @_};
     chomp $rsync ;
-    my ( $server , $port ) = ( 'rsync.wwpdb.org', 33444 );
+    my ( $server , $port ) = ( $opt->{server}, $opt->{port} );
 
     my ( $pdb , $obsolete, $model ) = ($this->pdb_dir, $this->obsolete_dir, $this->model_dir );
-
-    print qx[$rsync -rlpt -v -z --delete --port=$port ${server}::ftp_data/structures/divided/pdb/ $pdb 2>/dev/null];
-    print qx[$rsync -rlpt -v -z --delete --port=$port ${server}::ftp_data/structures/obsolete/pdb/ $obsolete 2>/dev/null/];
-    print qx[$rsync -rlpt -v -z --delete --port=$port ${server}::ftp_data/structures/models/current/ $model 2>/dev/null];
+    print STDERR qq{Download PDB data to $pdb. \n This downlaod take a long time ... \n};
+    qx[$rsync -rlpt -v -z --delete --port=$port ${server}::ftp_data/structures/divided/pdb/ $pdb 2>/dev/null];
+    print STDERR qq{Download PDB-obsolete data to $obsolete. \n This downlaod take a long time ... \n};
+    qx[$rsync -rlpt -v -z --delete --port=$port ${server}::ftp_data/structures/obsolete/pdb/ $obsolete 2>/dev/null/];
+    print STDERR qq{Download PDB-model data to $model. \n This downlaod take a long time ... \n};
+    qx[$rsync -rlpt -v -z --delete --port=$port ${server}::ftp_data/structures/models/current/ $model 2>/dev/null];
 
     return 1;
 }
