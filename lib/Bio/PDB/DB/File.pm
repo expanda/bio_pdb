@@ -13,9 +13,11 @@ use Carp qw{croak confess carp};
 #  AUTHOR:  Hiroyuki Nakamura <hiroyuki@sfc.keio.ac.jp>
 # VERSION:  1.0
 # CREATED:  2009/01/09 17時10分14秒 JST
+# TODO :
+#         * Log4Perl in $this->logger
 #===============================================================================
 
-__PACKAGE__->mk_accessors( qw{pdb_dir model_dir obsolete_dir cache_dir deflater} );
+__PACKAGE__->mk_accessors( qw{pdb_dir model_dir obsolete_dir cache_dir deflater logger} );
 
 #{{{ new : constructor
 sub new { 
@@ -38,42 +40,56 @@ sub new {
 
     $this->init_database($options->{'download'});
 
+    $this->init_cache;
+
     return $this;
 }
 #}}}
-#{{{ File Cashing TODO
+#{{{ File Cashing 
 {
     my $caches = {};
     my ( $current_cache_size , $max_cache_size ) = ( 0 , 0 );
     my ( $lxs , $mountpoint );
-
+#{{{ init_cache : initialize max_cache_size.
     sub init_cache {
-        eval { require Sys::Statistics::Linux::DiskUsage; }
+        my $this = shift;
+        eval { require Sys::Statistics::Linux::DiskUsage; };
         if ($@) {
-            $max_cache_size = 1000; 
+            $max_cache_size = 900000;
         }
         else {
             $lxs = Sys::Statistics::Linux::DiskUsage->new();
-            $max_cache_size = #lxs->get() <- TODO
+            my $diskinfo = $lxs->get();
+            my @candidates;
+            while (my ($disk, $info) = each %{$diskinfo}) {
+                push @candidates, $info->{mountpoint} if ($this->cache_dir =~ /^$$info{mountpoint}/);
+            }
+            $mountpoint = (sort { length($b) <=> length($a) } @candidates)[0];
+            $max_cache_size = $diskinfo->{$mountpoint}->{free} - 100000; # leave 10MB.
         }
+        return 1;
     }
-
+#}}}
+#{{{ get_cache : get PDB file as filehandle.
     sub get_cache {
         my $this = shift;
         my $id = shift;
         open my $fh , $caches->{$id} || croak "Failed to open file. : $!";
         return $fh;
     }
-
+#}}}
+#{{{ set_cache : set PDB File to cache direcotry
     sub set_cache {
         my $this = shift;
         my ($id, $fh) = shift;
-        clear_cache() unless disk_usage_ok ;
+
+        check_disk_usage();
+
         my $dir = $this->directory_name_for($id);
         my $file_path = File::Spec->join($this->cache_dir, $dir, $this->file_name_for($id));
 
-        unless (-d ${[File::Spec->splitpath($filepath)]}[1]) {
-            mkpath($filepath, {error => \my $err});
+        unless (-d ${[File::Spec->splitpath($file_path)]}[1]) {
+            mkpath($file_path, {error => \my $err});
             for my $diag (@$err) {
                 my ($f, $m)  = each %$diag;
                 print "Failed to make directory : $m\n" if $f eq '';
@@ -83,23 +99,45 @@ sub new {
         open my $out, ">$file_path" || croak "Failed to open file. : $!";
         print $out while ( <$fh> );
         $caches->{$id} = $file_path;
+
         # reload cache status
         $current_cache_size += ( stat ( $file_path ))[7];
-
+        
         return 1;
     }
-
+#}}}
+#{{{ exists_in_cache : test id exists in cache.
     sub exists_in_cache {
         my $this = shift;
-        return defined $caches->{+(shift)};
+        return ( defined $caches->{+(shift)} );
     }
-
-    sub clear_cache {
-        undef $caches ;
+#}}}
+#    sub decrease_cache { # deplecated.
+#        my $number_of_remove_files = 10;
+#        for my $id (( keys %{$caches} )[1..$number_of_remove_files]) {
+#            unlink $caches->{$id};
+#            delete $caches->{$id};
+#        }
+#        return 1;
+#    }
+#{{{ check_disk_usage : check disk usage and decrease filecache.
+    sub check_disk_usage {
+        if ( $max_cache_size * 0.95 < $current_cache_size ) {
+            my $number_of_remove_files = 10;
+            for my $id (( keys %{$caches} )[1..$number_of_remove_files]) {
+                unlink $caches->{$id};
+                delete $caches->{$id};
+            }       
+        }
+        return 1;
     }
-
-    sub disk_usage_ok {
-       my $usage_percent = $lxs->get($mountpoint, 'usageper'); 
+#}}}
+    sub _clear_cache {
+       while (my ($id, $path) = each %{$caches} ){
+        unlink $path; 
+       };
+       undef $caches;
+       return 1;
     }
 }
 #}}}
@@ -148,7 +186,7 @@ sub init_database {
     {
         no strict 'refs';
 
-        for $dir (qw{pdb_dir model_dir obsolete_dir cache_dir}) {
+        for my $dir (qw{pdb_dir model_dir obsolete_dir cache_dir}) {
             unless (-d $this->$dir) {
                 croak $! unless (mkdir $this->$dir);
             }
@@ -172,14 +210,12 @@ sub init_database {
 # ${RSYNC} -rlpt -v -z --delete --port=$PORT $SERVER::ftp_data/structures/divided/pdb/ $MIRRORDIR > $LOGFILE 3>/dev/null
 # ${RSYNC} -rlpt -v -z --delete --port=$PORT $SERVER::ftp_data/structures/obsolete/pdb/ $OBSOLETE > $LOGFILE 2>/dev/null
 # ${RSYNC} -rlpt -v -z --delete --port=$PORT $SERVER::ftp_data/structures/models/current/ $THEORITICAL > $LOGFILE 2>/dev/null
-
 sub download {
     my $this = shift;
     my $rsync = qx/which rsync/;
-
     chomp $rsync ;
-
     my ( $server , $port ) = ( 'rsync.wwpdb.org', 33444 );
+
     my ( $pdb , $obsolete, $model ) = ($this->pdb_dir, $this->obsolete_dir, $this->model_dir );
 
     print qx[$rsync -rlpt -v -z --delete --port=$port ${server}::ftp_data/structures/divided/pdb/ $pdb 2>/dev/null];
