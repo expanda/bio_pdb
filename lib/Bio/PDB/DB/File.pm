@@ -22,7 +22,9 @@ use Data::Dumper;
 #         * obsolete and model check.
 #===============================================================================
 
-__PACKAGE__->mk_accessors( qw{pdb_dir model_dir obsolete_dir cache_dir deflater logger} );
+__PACKAGE__->mk_accessors(
+    qw{pdb_dir model_dir obsolete_dir cache_dir logger}
+);
 
 #{{{ new : constructor
 sub new {
@@ -270,7 +272,6 @@ sub download {
 }
 
 #}}}
-
 
 1;
 

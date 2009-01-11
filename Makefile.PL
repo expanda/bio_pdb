@@ -2,10 +2,14 @@ use inc::Module::Install;
 name 'Bio-PDB';
 all_from 'lib/Bio/PDB.pm';
 
-requires 'bioperl';
+requires 'Bio::Structure::IO';
 requires 'Class::Accessor';
+requires 'IO::Uncompress::Gunzip';
 requires 'File::Util';
+requires 'File::Find';
+requires 'File::Spec';
 requires 'File::Path';
+requires 'Array::Utils';
 
 tests 't/*.t';
 author_tests 'xt';

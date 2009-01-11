@@ -68,7 +68,7 @@ sub new_from_filehandle {
     return $this;
 }
 
-sub replaced_entries {
+sub replaced {
     my $this = shift;
     if ($this->obslte) {
         return $this->obslte->rid_codes;
@@ -117,7 +117,7 @@ sub dbseq {
 }
 
 sub start_res_num_of {
-
+    carp "[TODO] start_res_num_of has not been implemented\n";
 }
 
 sub asa_score_around {
@@ -226,7 +226,7 @@ sub asa_score_of_random_selected {
     open my $infh,  File::Spec->rel2abs($this->asa) || croak "ASA File cannnot open.";
     my ( $total_asa, $position);
     while (<$infh>) {
-        chomp;  
+        chomp; 
         #ATOM      1  N   MET A   0      24.452   8.196  -9.773  1.00 21.07
         if (/^ATOM\s+?(\d+?)\s+?(.+?)\s+?(\w{3})\s+?(\w+?)\s+?(\d+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)$/) {
             if ( $3 eq $residue && $4 eq $chain) {
