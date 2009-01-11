@@ -12,3 +12,4 @@ while (<$fh>) {
     print $_;
 }
 
+$db->clear_cache;
