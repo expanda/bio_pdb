@@ -5,6 +5,8 @@ use warnings;
 use File::Spec;
 use File::Util;
 use File::Path;
+use File::Find;
+#use Bio::PDB::DB::Logger;
 use IO::Uncompress::Gunzip qw(gunzip $GunzipError);
 use Carp qw{croak confess carp};
 use Data::Dumper;
@@ -15,8 +17,9 @@ use Data::Dumper;
 # VERSION:  1.0
 # CREATED:  2009/01/09 17時10分14秒 JST
 # TODO :
+#         * Log4Perl in $this->logger -> to DB/Logger.pm
+# DONE :
 #         * obsolete and model check.
-#         * Log4Perl in $this->logger
 #===============================================================================
 
 __PACKAGE__->mk_accessors( qw{pdb_dir model_dir obsolete_dir cache_dir deflater logger} );
@@ -90,7 +93,7 @@ sub new {
         my $file_path = File::Spec->join($this->cache_dir, $dir, $this->file_name_for($id));
 
         unless (-d ${[File::Spec->splitpath($file_path)]}[1]) {
-            mkpath($file_path, {error => \my $err});
+            mkpath(${[File::Spec->splitpath($file_path)]}[1], {error => \my $err});
             for my $diag (@$err) {
                 my ($f, $m)  = each %$diag;
                 print "Failed to make directory : $m\n" if $f eq '';
@@ -100,13 +103,13 @@ sub new {
         #print "Cache to $file_path\n";
         #print Dumper $infh;
 
-        open my $out, ">$file_path" || croak "Failed to open file. : $!";
+        open my $out, ">$file_path" or croak "Failed to open file. : $!";
         print $out $_ while (<$infh>);
         $caches->{$id} = $file_path;
-
+        close $out;
         # reload cache status
         $current_cache_size += ( stat ( $file_path ))[7];
-        open my $returnfh, $file_path || croak "Failed to open file. : $!";
+        open my $returnfh, $file_path or croak "Failed to open file. : $!";
 
         return $returnfh;
     }
@@ -141,12 +144,14 @@ sub new {
         return 1;
     }
 #}}}
-    sub _clear_cache {
+    sub clear_cache {
+        my $this = shift;
         while (my ($id, $path) = each %{$caches} ){
-            unlink $path; 
-        };
-        undef $caches;
-        return 1;
+        unlink $path;
+       };
+       #find(sub{ if ( -d $_ && $_ !~ /^\.{1,2}$/ ) {rmdir $_ || croak "clear_cache : $!";} }, $this->cache_dir );
+       undef $caches;
+       return 1;
     }
 }
 #}}}
@@ -175,7 +180,7 @@ sub get_as_object {
 
         if ($fh) {
             $this->set_cache($id, $fh);
-            return Bio::PDB->new($fh, %args_pdb);       
+            return Bio::PDB->new($fh, %args_pdb);
         }
         else {
             return 0;
@@ -189,7 +194,7 @@ sub get_as_filehandle {
     my $id = lc shift;
 
     if ($this->exists_in_cache($id)) {
-        #print "get from cache\n";
+        print "get from cache\n";
         return $this->get_cache($id);
     }
     else {
@@ -266,6 +271,34 @@ sub download {
 
 #}}}
 
+
 1;
 
 __END__
+
+=head1 NAME
+
+Bio::PDB::DB::File - File store databaese object for Protein Data Bank
+
+=head1 DESCRIPTION
+
+Description here.
+
+=head1 Methods
+
+=head2 new
+
+=head2 get_as_object
+
+=head2 get_as_filehandle
+
+=head2 init_database
+
+=head2 download
+
+=head1 Author
+
+Hiroyuki Nakamura 
+
+=cut
+

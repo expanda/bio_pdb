@@ -19,7 +19,11 @@ sub init_database {
     carp "[ Please Implement. ]";
 }
 
-sub get {
+sub get_as_object {
+    carp "[ Please Implement. ]";
+}
+
+sub get_as_filehandle {
     carp "[ Please Implement. ]";
 }
 

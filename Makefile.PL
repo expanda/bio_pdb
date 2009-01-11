@@ -4,6 +4,8 @@ all_from 'lib/Bio/PDB.pm';
 
 requires 'bioperl';
 requires 'Class::Accessor';
+requires 'File::Util';
+requires 'File::Path';
 
 tests 't/*.t';
 author_tests 'xt';
