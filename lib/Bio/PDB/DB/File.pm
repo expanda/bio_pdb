@@ -22,7 +22,7 @@ use Data::Dumper;
 __PACKAGE__->mk_accessors( qw{pdb_dir model_dir obsolete_dir cache_dir deflater logger} );
 
 #{{{ new : constructor
-sub new { 
+sub new {
     my ($class) = shift;
     my $options = {
         pdb_dir      => '',
@@ -95,14 +95,14 @@ sub new {
                 my ($f, $m)  = each %$diag;
                 print "Failed to make directory : $m\n" if $f eq '';
             }
-			}
+        }
 
-			#print "Cache to $file_path\n";
-			#print Dumper $infh;
+        #print "Cache to $file_path\n";
+        #print Dumper $infh;
 
-			open my $out, ">$file_path" || croak "Failed to open file. : $!";
-			print $out $_ while (<$infh>);
-			$caches->{$id} = $file_path;
+        open my $out, ">$file_path" || croak "Failed to open file. : $!";
+        print $out $_ while (<$infh>);
+        $caches->{$id} = $file_path;
 
         # reload cache status
         $current_cache_size += ( stat ( $file_path ))[7];
@@ -114,19 +114,19 @@ sub new {
 #{{{ exists_in_cache : test id exists in cache.
     sub exists_in_cache {
         my $this = shift;
-		  my $id = shift;
-		  if (defined $caches->{$id}) {
-		 		return 1; 
-		  }
-		  else {
-			  my $cache_path = File::Spec->join($this->cache_dir, $this->directory_name_for($id) , $this->file_name_for($id));
-			  #print "Find : $cache_path\n";
-			  if (-f $cache_path) {
-				  $caches->{$id} = $cache_path;
-				  return 1;
-			  }
-		  }
-		  return 0;
+        my $id = shift;
+        if (defined $caches->{$id}) {
+            return 1; 
+        }
+        else {
+            my $cache_path = File::Spec->join($this->cache_dir, $this->directory_name_for($id) , $this->file_name_for($id));
+            #print "Find : $cache_path\n";
+            if (-f $cache_path) {
+                $caches->{$id} = $cache_path;
+                return 1;
+            }
+        }
+        return 0;
     }
 #}}}
 #{{{ check_disk_usage : check disk usage and decrease filecache.
@@ -142,11 +142,11 @@ sub new {
     }
 #}}}
     sub _clear_cache {
-       while (my ($id, $path) = each %{$caches} ){
-        unlink $path; 
-       };
-       undef $caches;
-       return 1;
+        while (my ($id, $path) = each %{$caches} ){
+            unlink $path; 
+        };
+        undef $caches;
+        return 1;
     }
 }
 #}}}
@@ -174,8 +174,8 @@ sub get_as_object {
         }
 
         if ($fh) {
-			  $this->set_cache($id, $fh);
-			  return Bio::PDB->new($fh, %args_pdb);       
+            $this->set_cache($id, $fh);
+            return Bio::PDB->new($fh, %args_pdb);       
         }
         else {
             return 0;
@@ -183,17 +183,17 @@ sub get_as_object {
     }
 }
 #}}}
- #{{{ get_as_filehandle : get PDB data as filehandle.
- sub get_as_filehandle {
+#{{{ get_as_filehandle : get PDB data as filehandle.
+sub get_as_filehandle {
     my $this = shift;
     my $id = lc shift;
 
     if ($this->exists_in_cache($id)) {
-		 #print "get from cache\n";
-       return $this->get_cache($id);
+        #print "get from cache\n";
+        return $this->get_cache($id);
     }
     else {
-		 #print "get from archive\n";
+        #print "get from archive\n";
         my $dir = $this->directory_name_for($id);
 
         my $fh;
@@ -205,8 +205,8 @@ sub get_as_object {
             }
         }
 
-		  if ($fh) {
-			  return $this->set_cache($id, $fh);
+        if ($fh) {
+            return $this->set_cache($id, $fh);
         }
         else {
             return 0;
@@ -222,13 +222,13 @@ sub init_database {
     {
         no strict 'refs';
 
-		  for my $dir (qw{pdb_dir model_dir obsolete_dir cache_dir}) {
-			  my $dpath = $this->$dir;
-			  next if ! defined $dpath or $dpath =~ /(?:^\s|^$)/;
-			  unless ( -d $this->$dir ) {
-				  croak "init_database :[$dpath]  $!" unless (mkdir $this->$dir);
-			  }
-		  }
+        for my $dir (qw{pdb_dir model_dir obsolete_dir cache_dir}) {
+            my $dpath = $this->$dir;
+            next if ! defined $dpath or $dpath =~ /(?:^\s|^$)/;
+            unless ( -d $this->$dir ) {
+                croak "init_database :[$dpath]  $!" unless (mkdir $this->$dir);
+            }
+        }
     }
 
     return 1;
