@@ -1,92 +1,106 @@
 package Bio::PDB;
+
 use strict;
 use warnings;
-use Data::Dumper;
 use Bio::Structure::IO;
 use Array::Utils qw(:all);
 use Carp qw{croak confess carp};
+use Data::Dumper;
+
+use Bio::PDB::DBREF;
+use Bio::PDB::SEQADV;
+use Bio::PDB::OBSLTE;
 
 our $VERSION = '0.0.1';
 
 use base qw{Class::Accessor::Fast};
-__PACKAGE__->mk_accessors(qw{archive tmp_dir id asa_dir asa filename stream first_str dbref seqadv sequence obsolete_dir dir asa_stack});
+__PACKAGE__->mk_accessors(qw{id asa_dir asa filename stream first_str dbref seqadv sequence asa_stack obslte annotation_keys fast});
 
-use Bio::PDB::DBREF;
-use Bio::PDB::SEQADV;
+CHECK {
+    no strict 'refs';
+   *{__PACKAGE__.'::obsolete'} = \&obslte;
+}
 
 sub new {
-    my ($class, $id, $fast ) = @_;
+    my $class = shift;
+    my $fname = shift;
+    open my $fh, $fname or croak "new : $!";
+
+    __PACKAGE__->new_from_filehandle($fh, @_);
+}
+
+sub new_from_filehandle {
+    my $class = shift;
+    my $filehandle = shift;
+    # obsolete check.
+    my $args = {
+        fast => 0, 
+        @_
+    };
+
     my $this = bless {} ,$class;
-
-    $id = lc $id;
-
-    $this->tmp_dir('/state/partition1/') unless $this->tmp_dir;
-    $this->obsolete_dir('/home/t04632hn/db/pdb-obsolete/') unless $this->obsolete_dir;
-
-    $this->_initialize($id);
-
-    my $tmp = $this->tmp_dir;
-    my $tmp_file = $this->tmp_dir.$this->filename;
-    my $tmp_archive = $this->tmp_dir.$this->filename.".gz";
-
-    unless (-e $tmp_file) {
-        if (-e $this->archive ) {
-            my $archive = $this->archive;
-            qx/cp $archive $tmp/;
-            qx/gzip -d $tmp_archive/;
-        }
-        else {
-            # IF Obsolete ...
-            my $obsolete = $this->obsolete_dir.$this->dir."/pdb$id.ent.gz";
-            my $current;
-            qx/cp $obsolete $tmp/;
-            qx/gzip -d $tmp_archive/;
-            my $tmpstream = Bio::Structure::IO->new( -file => $tmp_file, -format => 'PDB' );
-            my @obs = $tmpstream->next_structure->annotation->get_Annotations('obslte');
-            print $obs[0]->as_text."\n";
-            if ( $obs[0]->as_text =~ /^Value:.+\s([A-Z0-9]{4})/ ) {
-                $current = lc $1;
-                $this->_initialize($current);
-                $tmp_file = $this->tmp_dir.$this->filename.".gz";
-                my $archive = $this->archive;
-                qx/cp $archive $tmp/;
-                qx/gzip -d $tmp_file/;		
-            }
-            else {
-                croak "OBSOLETE. but cannot retrieve new file."	;
-            }
-        }
-    }
-
-    $this->stream(Bio::Structure::IO->new( -file => $tmp_file, -format => 'PDB' ));
+    $this->fast($args->{fast});
+    $this->stream(Bio::Structure::IO->new( -fh => $filehandle , -format => 'PDB' ));
     $this->first_str($this->stream->next_structure());
 
-    if ($this->first_str->annotation()->get_Annotations('dbref') && !$fast ) {
-        $this->dbref(PDB::DBREF->new($this->first_str->annotation()->get_Annotations('dbref')));
+    my $annotation_keys ;
+
+    for my $key ( $this->first_str->annotation->get_all_annotation_keys ) {
+        $annotation_keys->{$key} = 1; 
     }
 
-    if ($this->first_str->annotation()->get_Annotations('seqadv') && !$fast ) {
-        $this->seqadv(PDB::SEQADV->new($this->first_str->annotation()->get_Annotations('seqadv')));
+    $this->annotation_keys($annotation_keys);
+
+    if ($this->has_annotation('obslte')) {
+        $this->init_annotation('obslte');
+    } 
+
+    unless ( $this->fast ) {
+        if ($this->has_annotation('dbref')) {
+            $this->init_annotation('dbref');
+        }
+
+        if ($this->has_annotation('seqadv')) {
+            $this->init_annotation('seqadv');
+        }
     }
 
     return $this;
 }
 
-sub _initialize {
-    my ($this, $id) = @_;
-    my $dir;
-    $this->id($id);
-    if ( $id =~ m/^\w(\w{2})\w$/ ) {
-        $dir = $1;
+sub replaced_entries {
+    my $this = shift;
+    if ($this->obslte) {
+        return $this->obslte->rid_codes;
     }
-    $this->dir($dir);
-    $this->filename("pdb$id.ent");
-    $this->archive(qq{/home/t04632hn/db/pdb/$dir/pdb$id.ent.gz});
-    #$this->asa(qq{/home/t04632hn/db/pdb_asa_3a/$dir/pdb$id.ent});
-    $this->asa(qq{/home/t04632hn/db/pdb_asa/$dir/pdb$id.ent});
+    else {
+        return 0; 
+    }
 }
 
-# exclude ADVSEQ
+sub init_annotation {
+    my $this = shift;
+    my $annotation_key = shift;
+    my @supported_annotations = ('dbref', 'seqadv', 'obslte');
+    my @hit;
+    if ( @hit = grep { $annotation_key eq $_ } @supported_annotations ) {
+        my $class_name = uc shift @hit;
+        {
+            no strict 'refs';
+            unless ( $this->$annotation_key() ) {
+                $this->$annotation_key("Bio::PDB::$class_name"->new([$this->first_str->annotation->get_Annotations($annotation_key)]));
+            } 
+        }
+    }
+}
+
+sub has_annotation {
+    my $this = shift;
+    my $annotation_key = $this->annotation_keys;
+    return defined $annotation_key->{+( shift )};
+}
+
+# exclude SEQADV from SEQRES
 sub dbseq {
     my $this = shift;
     my $chain = shift || "A";
@@ -99,7 +113,7 @@ sub dbseq {
         $result_seq =~ s/$before_base//;
     }
 
-    return $result_seq;	
+    return $result_seq;
 }
 
 sub start_res_num_of {

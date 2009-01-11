@@ -1,15 +1,18 @@
-package PDB::DBREF;
+package Bio::PDB::DBREF;
 
 use strict;
 use warnings;
 use Data::Dumper;
 use base qw{Class::Accessor::Fast};
-__PACKAGE__->mk_accessors(qw{ idcode chain_id seq_begin insert_begin 
+__PACKAGE__->mk_accessors(
+    qw{ idcode chain_id seq_begin insert_begin 
     seq_end insert_end database db_accession
-    db_id_code dbseq_begin dbins_begin dbseq_end	dbins_end});
+    db_id_code dbseq_begin dbins_begin dbseq_end dbins_end}
+);
 
 sub new {
-    my ($class, $annotation) = @_;
+    my ($class, $annotations) = @_;
+    my $annotation = shift @{$annotations};
     my $string = (ref $annotation) ? $annotation->tagname . "  ". $annotation->value : $annotation;
     my $this = bless {}, $class;
     return $this unless $string;
