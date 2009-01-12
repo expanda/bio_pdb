@@ -10,18 +10,23 @@ use Data::Dumper;
 use Bio::PDB::DBREF;
 use Bio::PDB::SEQADV;
 use Bio::PDB::OBSLTE;
+use Bio::PDB::ASA;
 
 our $VERSION = '0.0.1';
 
 use base qw{Class::Accessor::Fast};
-__PACKAGE__->mk_accessors(qw{id asa_dir asa filename stream first_str dbref seqadv sequence asa_stack obslte annotation_keys fast});
 
+__PACKAGE__->mk_accessors(
+    qw{id asa_file filename stream
+    first_str dbref seqadv sequence asa_stack
+    obslte annotation_keys fast});
+
+# Subroutine Alias
 CHECK {
     no strict 'refs';
    *{__PACKAGE__.'::obsolete'} = \&obslte;
 }
-
-sub new {
+sub new {#{{{
     my $class = shift;
     my $fname = shift;
     open my $fh, $fname or croak "new : $!";
@@ -32,10 +37,10 @@ sub new {
 sub new_from_filehandle {
     my $class = shift;
     my $filehandle = shift;
-    # obsolete check.
+
     my $args = {
         fast => 0, 
-        @_
+       @_
     };
 
     my $this = bless {} ,$class;
@@ -67,8 +72,8 @@ sub new_from_filehandle {
 
     return $this;
 }
-
-sub replaced {
+#}}}
+sub replaced {#{{{
     my $this = shift;
     if ($this->obslte) {
         return $this->obslte->rid_codes;
@@ -77,8 +82,8 @@ sub replaced {
         return 0; 
     }
 }
-
-sub init_annotation {
+#}}}
+sub init_annotation {#{{{
     my $this = shift;
     my $annotation_key = shift;
     my @supported_annotations = ('dbref', 'seqadv', 'obslte');
@@ -93,15 +98,14 @@ sub init_annotation {
         }
     }
 }
-
-sub has_annotation {
+#}}}
+sub has_annotation {#{{{
     my $this = shift;
     my $annotation_key = $this->annotation_keys;
     return defined $annotation_key->{+( shift )};
 }
-
-# exclude SEQADV from SEQRES
-sub dbseq {
+#}}}
+sub dbseq {#{{{ exclude SEQADV from SEQRES
     my $this = shift;
     my $chain = shift || "A";
     my $base_seq = $this->first_str->seqres($chain)->seq();
@@ -115,153 +119,146 @@ sub dbseq {
 
     return $result_seq;
 }
-
-sub start_res_num_of {
+#}}}
+sub start_res_num_of {#{{{
     carp "[TODO] start_res_num_of has not been implemented\n";
 }
-
-sub asa_score_around {
+#}}}
+sub attach_asa { #{{{
+    my $this = shift;
+    my $filename = shift;
+    $this->asa_file($filename);
+    if ( -f $filename ) {
+        $this->read_asa_score;
+    }
+    else {
+        carp "attach_asa : $filename file not found." 
+    }
+}
+#}}}
+sub read_asa_score { #{{{
+    my $this = shift;
+    my $asa_stack = [];
+    open my $infh,  File::Spec->rel2abs($this->asa_file) || croak "ASA File cannnot open.";
+    $this->asa_stack(Bio::PDB::ASA->new($infh));
+}
+#}}}
+sub asa_stack_min_index {#{{{
+    my $this = shift;
+    my $min = shift @{$this->asa_stack->rows};
+    unshift @{$this->asa_stack->rows}, $min;
+    return $min->indexnum;
+}#}}}
+sub asa_stack_min_position {#{{{
+    my $this = shift;
+    my $min = shift @{$this->asa_stack->rows};
+    unshift @{$this->asa_stack->rows}, $min;
+    return $min->position;
+}#}}}
+sub asa_stack_max_index {#{{{
+    my $this = shift;
+    my $max = pop @{$this->asa_stack->rows};
+    push @{$this->asa_stack->rows}, $max;
+    return $max->indexnum;
+}#}}}
+sub asa_stack_max_position {#{{{
+    my $this = shift;
+    my $max = pop @{$this->asa_stack->rows};
+    push @{$this->asa_stack->rows}, $max;
+    return $max->position;
+}#}}}
+sub asa_score_around {#{{{
     my $this = shift;
     my ($range, $midium, $chain ) = @_;
     my $start = $midium - ($range/2);
     my $end = $midium + ($range/2);
     my $total_asa;
+    $this->read_asa_score unless $this->asa_stack;
 
-    open my $infh,  File::Spec->rel2abs($this->asa) || croak "ASA File cannnot open.";
-    while (<$infh>) {
-        chomp;  
-        if (/^ATOM\s+?(\d+?)\s+?(.+?)\s+?(\w{3})\s+?(\w+?)\s+?(\d+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)$/) {
-            my $tmp_res = $3;
-            if ( $start <= $5 && $5 <= $end && $4 eq $chain) {
-                $total_asa += $10;
-            }
-        }
+    for my $row ( @{$this->asa_stack->rows} ) {
+        $total_asa += $row->asa 
+        if ( $start <= $row->position && $row->position <= $end && $row->chain eq $chain ); 
     }
-    close $infh;
-    return $total_asa;
-}
 
-sub read_asa_score {
-    my $this = shift;
-    my $asa_stack = [];
-    open my $infh,  File::Spec->rel2abs($this->asa) || croak "ASA File cannnot open.";
-    my $index = 0;
-    my $tmp_pos;
-    while (<$infh>) {
-        chomp;  
-        if (/^ATOM\s+?(\d+?)\s+?(.+?)\s+?(\w{3})\s+?(\w+?)\s+?(\d+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)$/) {
-            push @{$asa_stack}, { position => $5, residue => $3, chain => $4 , asa => $10, index => $index};
-            $tmp_pos = $5 unless defined $tmp_pos;
-            if ( $tmp_pos != $5  ) {
-                $index++;
-            }
-            $tmp_pos = $5;
-        }
-    }
-    close $infh;
-    $this->asa_stack($asa_stack);
+   return $total_asa;
 }
-
-sub asa_stack_max_index {
-    my $this = shift;
-    my $max = pop @{$this->asa_stack};
-    return $max->{index};
-}
-
-sub asa_score_around_6_of_random_selected {
+#}}}
+sub asa_score_around_n_of_random_selected { #{{{ default around 6.
     my $this = shift;
     my $residue = shift;
+    my $around = shift || 6;
     my $chain = shift || 'A';
     my $total_asa = 0;
     $this->read_asa_score unless $this->asa_stack;
 
     my $max_index = $this->asa_stack_max_index;
-    my @stack_of_res = grep { $_->{chain} eq $chain && $_->{residue} eq $residue } @{$this->asa_stack};
-    #my @candidate_res_position = map { $_->{position} } @stack_of_res;
-    #@candidate_res_position = unique(@caondidate_res_position);
+    my @stack_of_res = grep { $_->chain eq $chain && $_->residue eq $residue } @{$this->asa_stack->rows};
 
     return if scalar @stack_of_res == 0;
 
     my $chk = 0;
     my $random_selected;
     while ( $random_selected = delete $stack_of_res[int(rand($#stack_of_res))] ) {
-        unless ( $random_selected->{index} <= 3 && ($random_selected->{index} + 3) >= $max_index ) {
+
+        unless ( ( $random_selected->indexnum <= ($around/2) )
+            && ($random_selected->indexnum + ($around/2) ) >= $max_index ) {
             $chk = 1;
             last;
         }
         else {
-            $random_selected = undef;	
+            $random_selected = undef;
         }
+
     }
 
     return if $chk == 0;
 
-    my ($start, $end) = (( $random_selected->{position} - 3 ), ($random_selected->{position} + 3));
-    my ($starti, $endi) = (( $random_selected->{index} - 3 ), ($random_selected->{index} + 3));
+    my ($start, $end) = (( $random_selected->{position} - ($around/2)), ($random_selected->{position} + 3));
+    my ($starti, $endi) = (( $random_selected->{indexnum} - ($around/2)), ($random_selected->{indexnum} + 3));
 
-    print "$starti $endi OKOKOK\n";
+    #print "$starti $endi OKOKOK\n";
     my $tmpr;
-    for my $atom (@{$this->asa_stack}) {
+    for my $atom (@{$this->asa_stack->rows}) {
         if ( $atom->{position} >= $start && $atom->{position} <= $end && $atom->{chain} eq $chain ) {
             $total_asa += $atom->{asa};
-            unless ( $tmpr ) { $tmpr = $atom->{residue}; print $tmpr."\n"; }
+            unless ( $tmpr ) { $tmpr = $atom->{residue}; } #print $tmpr."\n"; }
             if ( $tmpr ne $atom->{residue}) {
-                print $atom->{residue}."\n";
+                #print $atom->{residue}."\n";
                 $tmpr = $atom->{residue};
             }
         }
         elsif ( $atom->{position} > $end ) {
-            last;	
+            last;
         }
     }
 
-    print "ASA: $total_asa\n";
+    #print "ASA: $total_asa\n";
     return $total_asa;
 }
-
-sub asa_score_of_random_selected {
-    my $this = shift;
-    my $residue = shift;
-    my $chain = shift || 'A';
-    open my $infh,  File::Spec->rel2abs($this->asa) || croak "ASA File cannnot open.";
-    my ( $total_asa, $position);
-    while (<$infh>) {
-        chomp; 
-        #ATOM      1  N   MET A   0      24.452   8.196  -9.773  1.00 21.07
-        if (/^ATOM\s+?(\d+?)\s+?(.+?)\s+?(\w{3})\s+?(\w+?)\s+?(\d+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)$/) {
-            if ( $3 eq $residue && $4 eq $chain) {
-                last if ( $position && $position != $5);
-                $position = $5;
-                $total_asa += $10;
-                print $3."\t".$5."\t".$10."\n";
-            }
-        }
-    }
-    close $infh;
-    return $total_asa;
-}
-
-sub asa_score_at {
+#}}}
+# sub asa_score_of_random_selected {
+#     my $this = shift;
+#     my $residue = shift;
+#     my $chain = shift || 'A';
+#     my $position = int(rand($this->asa_stack_max_position));
+#     return $this->asa_score_at($position, $chain);
+# }
+#
+sub asa_score_at { #{{{
     my $this = shift;
     my $position = shift;
     my $chain = shift || "A";
-    my ($total_asa, $res);
-    open my $infh,  File::Spec->rel2abs($this->asa) || croak "ASA File cannnot open.";
-    while (<$infh>) {
-        chomp;
-        #ATOM      1  N   MET A   0      24.452   8.196  -9.773  1.00 21.07
-        if (/^ATOM\s+?(\d+?)\s+?(.+?)\s+?(\w{3})\s+?(\w+?)\s+?(\d+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)$/) {
-            #print $3."\t".$5."\t".$10."\n" if $5 == $position && $4 eq $chain;
-            my $tmp_res = $3;
-            if ( $5 == $position && $4 eq $chain) {
-                $total_asa += $10;
-                $res = $tmp_res;
-                #print $res."\n";
-            }
+    my ($total_asa);
+    for my $atom (@{$this->asa_stack->rows}) {
+        if ($atom->position == $position
+                and $atom->chain eq $chain) {
+            last if ( $position && $position != $atom->position);
+            $total_asa += $atom->asa;
         }
     }
-    close $infh;
-    return ( $res, $total_asa);
+    return $total_asa;
 }
-
+#}}}
 1;
+__END__
+
