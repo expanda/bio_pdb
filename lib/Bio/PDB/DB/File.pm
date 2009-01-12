@@ -6,7 +6,7 @@ use File::Spec;
 use File::Util;
 use File::Path;
 use File::Find;
-#use Bio::PDB::DB::Logger;
+use Bio::PDB;
 use IO::Uncompress::Gunzip qw(gunzip $GunzipError);
 use Carp qw{croak confess carp};
 use Data::Dumper;
@@ -164,7 +164,7 @@ sub get_as_object {
     my %args_pdb = @_;
 
     if ($this->exists_in_cache($id)) {
-        return Bio::PDB->new($this->get_cache($id), %args_pdb);
+        return Bio::PDB->new_from_filehandle($this->get_cache($id), %args_pdb);
     }
     else {
         my $dir = $this->directory_name_for($id);
