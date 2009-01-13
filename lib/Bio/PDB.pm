@@ -120,6 +120,25 @@ sub dbseq {#{{{ exclude SEQADV from SEQRES
     return $result_seq;
 }
 #}}}
+sub residue_at {
+	my $this = shift;
+	my $pos = shift;
+	my $chain = shift || 'A';
+	#print $pos;
+	my $chain_obj = (grep { $_->{'id'} eq $chain } $this->first_str->get_chains())[0];
+	if ($chain_obj) {
+		for my $res ( $this->first_str->get_residues($chain_obj) ) {
+			if ( $res->id =~ /^([A-Z]+?)-(\d+?)$/ ) {
+				#print $2."\n";
+				return $1 if ($2 == $pos);	
+			}
+			#else {
+			#print "!!!!!!!! $_\n";	
+			#}
+		}
+	}
+	return 0;
+}
 sub start_res_num_of {#{{{
     carp "[TODO] start_res_num_of has not been implemented\n";
 }
