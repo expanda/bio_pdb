@@ -6,6 +6,7 @@ use File::Spec;
 use File::Util;
 use File::Path;
 use File::Find;
+#use Cache::MemoryCache;
 use Bio::PDB;
 use IO::Uncompress::Gunzip qw(gunzip $GunzipError);
 use Carp qw{croak confess carp};
@@ -48,6 +49,8 @@ sub new {
 
     $this->init_cache;
 
+#	 my $cache = new Cache::MemoryCache();
+#	 $this->memorycache($cache);
     return $this;
 }
 #}}}
@@ -71,7 +74,7 @@ sub new {
                 push @candidates, { disk => $disk, mp => $info->{mountpoint}} if ($this->cache_dir =~ /^$$info{mountpoint}/);
             }
             $diskname = (sort { length($b->{mp}) <=> length($a->{mp}) } @candidates)[0]->{disk};
-            $max_cache_size = $diskinfo->{$diskname}->{free} - 100000; # leave 10MB.
+            $max_cache_size = $diskinfo->{$diskname}->{free} * 1000 - 100000; # leave 10MB.
         }
         return 1;
     }
@@ -109,10 +112,10 @@ sub new {
         print $out $_ while (<$infh>);
         $caches->{$id} = $file_path;
         close $out;
+		  close $infh;
         # reload cache status
         $current_cache_size += ( stat ( $file_path ))[7];
         open my $returnfh, $file_path or croak "Failed to open file. : $!";
-
         return $returnfh;
     }
 #}}}
@@ -136,6 +139,7 @@ sub new {
 #}}}
 #{{{ check_disk_usage : check disk usage and decrease filecache.
     sub check_disk_usage {
+		 print "MAX : $max_cache_size\tCUR : $current_cache_size\n";
         if ( $max_cache_size * 0.95 < $current_cache_size ) {
             my $number_of_remove_files = 10;
             for my $id (( keys %{$caches} )[1..$number_of_remove_files]) {
@@ -163,8 +167,24 @@ sub get_as_object {
     my $id = lc shift;
     my %args_pdb = @_;
 
+
     if ($this->exists_in_cache($id)) {
-        return Bio::PDB->new_from_filehandle($this->get_cache($id), %args_pdb);
+		 my $obj;
+       eval { $obj = Bio::PDB->new_from_filehandle($this->get_cache($id), %args_pdb);};
+		 if ($@) {
+			 my $dir = $this->directory_name_for($id);
+			 my $archive_path = File::Spec->join($this->pdb_dir, $dir, $this->archive_name_for($id));	 
+			 my $fh;
+			 for my $category ( $this->pdb_dir, $this->model_dir, $this->obsolete_dir ) {
+				 my $path = File::Spec->join( $category, $dir, $this->archive_name_for($id));
+				 if (-f $path) {
+					 $fh = IO::Uncompress::Gunzip->new($path) or die "GunzipError : $GunzipError";
+                last;
+				 }
+			 }
+			 $obj = Bio::PDB->new_from_filehandle($fh, %args_pdb); 
+		 }
+		 return $obj;
     }
     else {
         my $dir = $this->directory_name_for($id);
@@ -181,8 +201,23 @@ sub get_as_object {
         }
 
         if ($fh) {
-            $this->set_cache($id, $fh);
-            return Bio::PDB->new($fh, %args_pdb);
+            my $newfh = $this->set_cache($id, $fh);
+				my $obj;
+            eval{ $obj = Bio::PDB->new_from_filehandle($newfh, %args_pdb);};
+				if ($@) {
+					carp qq{$@};	
+					my $gzfh;
+					for my $category ( $this->pdb_dir, $this->model_dir, $this->obsolete_dir ) {
+						my $path = File::Spec->join( $category, $dir, $this->archive_name_for($id));
+						if (-f $path) {
+							$gzfh = IO::Uncompress::Gunzip->new($path) or die "GunzipError : $GunzipError";
+							last;
+						}
+					}
+					$obj = Bio::PDB::->new_filehandle($gzfh, %args_pdb);
+				}
+				close $newfh;
+				return $obj;
         }
         else {
             return 0;
