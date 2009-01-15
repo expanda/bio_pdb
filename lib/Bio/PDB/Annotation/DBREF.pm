@@ -1,4 +1,4 @@
-package Bio::PDB::DBREF;
+package Bio::PDB::Annotation::DBREF;
 
 use strict;
 use warnings;

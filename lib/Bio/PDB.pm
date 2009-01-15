@@ -7,9 +7,10 @@ use Array::Utils qw(:all);
 use Carp qw{croak confess carp};
 use Data::Dumper;
 
-use Bio::PDB::DBREF;
-use Bio::PDB::SEQADV;
-use Bio::PDB::OBSLTE;
+use Bio::PDB::Annotation::DBREF;
+use Bio::PDB::Annotation::SEQADV;
+use Bio::PDB::Annotation::OBSLTE;
+use Bio::PDB::Annotation::REMARK::465;
 use Bio::PDB::ASA;
 
 our $VERSION = '0.0.1';
@@ -26,6 +27,7 @@ CHECK {
     no strict 'refs';
    *{__PACKAGE__.'::obsolete'} = \&obslte;
 }
+
 sub new {#{{{
     my $class = shift;
     my $fname = shift;
@@ -83,17 +85,18 @@ sub replaced {#{{{
     }
 }
 #}}}
-sub init_annotation {#{{{
+sub init_annotation { #{{{
     my $this = shift;
     my $annotation_key = shift;
-    my @supported_annotations = ('dbref', 'seqadv', 'obslte');
+    my @supported_annotations = ('dbref', 'seqadv', 'obslte', 'remark_465');
     my @hit;
     if ( @hit = grep { $annotation_key eq $_ } @supported_annotations ) {
         my $class_name = uc shift @hit;
+		  $class_name =~ s/_/::/g;
         {
             no strict 'refs';
             unless ( $this->$annotation_key() ) {
-                $this->$annotation_key("Bio::PDB::$class_name"->new([$this->first_str->annotation->get_Annotations($annotation_key)]));
+                $this->$annotation_key("Bio::PDB::Annotation::$class_name"->new([$this->first_str->annotation->get_Annotations($annotation_key)]));
             } 
         }
     }
@@ -120,7 +123,7 @@ sub dbseq {#{{{ exclude SEQADV from SEQRES
     return $result_seq;
 }
 #}}}
-sub residue_at {
+sub residue_at { #{{{  $this->residue_at(10, 'A');
 	my $this = shift;
 	my $pos = shift;
 	my $chain = shift || 'A';
@@ -132,13 +135,10 @@ sub residue_at {
 				#print $2."\n";
 				return $1 if ($2 == $pos);	
 			}
-			#else {
-			#print "!!!!!!!! $_\n";	
-			#}
 		}
 	}
 	return 0;
-}
+}#}}}
 sub start_res_num_of {#{{{
     carp "[TODO] start_res_num_of has not been implemented\n";
 }

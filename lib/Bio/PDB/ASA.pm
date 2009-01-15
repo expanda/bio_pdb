@@ -14,7 +14,7 @@ use Data::Dumper;
 #===============================================================================
 
 # !!!! NOTICE !!!!
-# Interface of Bio::PDB::ASA is diffrent from other Bio::(Entrys)
+# Interface of Bio::PDB::ASA is diffrent from other Bio::(Annotations)
 # new(filehandle)
 
 __PACKAGE__->mk_accessors(qw{rows cursor});

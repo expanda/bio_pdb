@@ -1,4 +1,4 @@
-package Bio::PDB::SEQADV;
+package Bio::PDB::Annotation::SEQADV;
 use strict;
 use warnings;
 use base qw{Class::Accessor::Fast};

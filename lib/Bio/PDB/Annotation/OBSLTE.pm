@@ -1,4 +1,4 @@
-package Bio::PDB::OBSLTE;
+package Bio::PDB::Annotation::OBSLTE;
 
 use strict;
 use warnings;
