@@ -19,8 +19,9 @@ use base qw{Class::Accessor::Fast};
 
 __PACKAGE__->mk_accessors(
     qw{id asa_file filename stream
-    first_str dbref seqadv sequence asa_stack
-    obslte annotation_keys fast});
+    first_str sequence asa_stack
+    obslte annotation_keys fast
+	 dbref seqadv remark_465 });
 
 # Subroutine Alias
 CHECK {

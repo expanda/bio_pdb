@@ -48,7 +48,7 @@ sub adv_for {
 #     my @rows_for_chain = map { $_->chain_id eq $chain } $this->rows;
 # }
 
-package Bio::PDB::SEQADV::Row;
+package Bio::PDB::Annotation::SEQADV::Row;
 use base qw{Class::Accessor::Fast};
 __PACKAGE__->mk_accessors(qw{idcode res_name chain_id seq_num i_code database db_id_code db_res db_seq conflict});
 
