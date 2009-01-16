@@ -124,6 +124,20 @@ sub dbseq {#{{{ exclude SEQADV from SEQRES
     return $result_seq;
 }
 #}}}
+# sub position_unp_to_pdb {
+# 	my $this = shift;
+# 	my $unp_position = shift;
+# 	my $chain = shift || 'A';
+# 
+# 	if ($this->has_annotation('remark_465')) {
+# 		$this->init_annotation('remark_465');
+# 		for my $missing_residue (@{$this->remark_465->rows}) {
+# 			$unp_position-- if ($missing_residue->seq_num <= $unp_position &&
+# 				$missing_residue->chain_id eq $chain);
+# 		}
+# 	}
+# 	return $unp_position;	
+# }
 sub residue_at { #{{{  $this->residue_at(10, 'A');
 	my $this = shift;
 	my $pos = shift;

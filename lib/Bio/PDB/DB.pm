@@ -11,6 +11,12 @@ use Carp qw{croak confess carp};
 #===============================================================================
 use base qw{Class::Accessor::Fast};
 
+# Subroutine Alias
+CHECK {
+    no strict 'refs';
+   *{__PACKAGE__.'::dir_name_for'} = \&directory_name_for;
+}
+
 sub new {
 
 }

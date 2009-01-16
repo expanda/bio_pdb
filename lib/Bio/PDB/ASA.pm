@@ -81,7 +81,7 @@ __PACKAGE__->mk_accessors(qw{
 
     sub set_savedpos {
         my $pos = shift;
-        if ( $pos ) {
+        if ( $pos =~ /\d+/ ) {
             $savedpos = $pos; 
         }
         else {
@@ -101,7 +101,7 @@ __PACKAGE__->mk_accessors(qw{
 sub new {
     my ( $class, $line, $index ) = @_;
     my $this = bless {}, $class;
-    if (/^ATOM\s+?(\d+?)\s+?(.+?)\s+?(\w{3})\s+?(\w+?)\s+?(\d+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)$/) {
+    if (/^ATOM\s+?(\d+?)\s+?(.+?)\s+?(\w{2,3})\s+?(\w{1})\s*(\d+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9\.-]{4})\s{0,}([0-9\.-]+?)$/) {
         $this->position($5); 
         $this->residue($3); 
         $this->chain($4); 
@@ -117,7 +117,7 @@ sub new {
         return 0;
     }
     elsif (/^HETATM/) {
-        carp qq{HETATM record is ignored\n};
+		 #carp qq{HETATM record is ignored\n};
         return 0;
     }
 

@@ -13,7 +13,6 @@ sub new {
 	 return unless $annotations;
 	 my $string = $annotations->[0]->value;
 	 my $this = bless {}, $class;
-	 print Dumper $annotations->[0]->hash_tree();
 	 my $i=0;
 	 my @rows;
 

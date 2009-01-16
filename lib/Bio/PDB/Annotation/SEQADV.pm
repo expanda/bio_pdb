@@ -13,7 +13,7 @@ sub new {
     my $this = bless {}, $class;
     my $i=0;
     while (my $l = substr $string, $i, 63) {
-        push @rows , Bio::PDB::SEQADV::Row->new($l);
+        push @rows , Bio::PDB::Annotation::SEQADV::Row->new($l);
         $i += 63;
     }
     $this->rows(\@rows);
