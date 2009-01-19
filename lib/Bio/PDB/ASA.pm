@@ -121,6 +121,8 @@ sub new {
 			 }
 		 }
 
+		 $this->indexnum(get_index()); 
+
 		 if ( get_savedpos && get_savedpos != $this->position  ) {
 			 increment_index();
 		 }

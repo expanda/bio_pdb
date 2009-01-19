@@ -112,7 +112,7 @@ sub has_annotation {#{{{
 #}}}
 sub dbseq {#{{{ exclude SEQADV from SEQRES
     my $this = shift;
-    my $chain = shift || "A";
+    my $chain = shift || (shift @{[$this->first_str->get_chains()]})->id;
     my $base_seq = $this->first_str->seqres($chain)->seq();
     return $base_seq unless $this->seqadv;
     my $before_base = $this->seqadv->insert_before($chain);
@@ -222,14 +222,14 @@ sub asa_score_around_n_of_random_selected { #{{{ default around 6.
     my $this = shift;
     my $residue = shift;
     my $around = shift || 6;
-    my $chain = shift || 'A';
+    my $chain = shift || (shift @{[$this->first_str->get_chains()]})->id;
     my $total_asa = 0;
     $this->read_asa_score unless $this->asa_stack;
 
     my $max_index = $this->asa_stack_max_index;
     my @stack_of_res = grep { $_->chain eq $chain && $_->residue eq $residue } @{$this->asa_stack->rows};
 
-    return if scalar @stack_of_res == 0;
+    carp "No $residue Found." and return if scalar @stack_of_res == 0;
 
     my $chk = 0;
     my $random_selected;
@@ -267,7 +267,6 @@ sub asa_score_around_n_of_random_selected { #{{{ default around 6.
         }
     }
 
-    #print "ASA: $total_asa\n";
     return $total_asa;
 }
 #}}}
