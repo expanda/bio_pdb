@@ -27,6 +27,7 @@ __PACKAGE__->mk_accessors(
 CHECK {
     no strict 'refs';
    *{__PACKAGE__.'::obsolete'} = \&obslte;
+   *{__PACKAGE__.'::asa'} = \&asa_stack;
 }
 
 sub new {#{{{
@@ -141,7 +142,7 @@ sub dbseq {#{{{ exclude SEQADV from SEQRES
 sub residue_at { #{{{  $this->residue_at(10, 'A');
 	my $this = shift;
 	my $pos = shift;
-	my $chain = shift || 'A';
+	my $chain = shift || (shift @{[$this->first_str->get_chains()]})->id;
 	#print $pos;
 	my $chain_obj = (grep { $_->{'id'} eq $chain } $this->first_str->get_chains())[0];
 	if ($chain_obj) {

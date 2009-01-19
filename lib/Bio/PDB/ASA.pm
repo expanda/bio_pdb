@@ -72,7 +72,7 @@ use warnings;
 use Carp qw{croak carp};
 use base qw{Class::Accessor::Fast};
 __PACKAGE__->mk_accessors(qw{
-  position residue chain asa indexnum
+  position residue chain asa indexnum atom
 });
 
 {
@@ -101,25 +101,60 @@ __PACKAGE__->mk_accessors(qw{
 sub new {
     my ( $class, $line, $index ) = @_;
     my $this = bless {}, $class;
-    if (/^ATOM\s+?(\d+?)\s+?(.+?)\s+?(\w{2,3})\s+?(\w{1})\s*(\d+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9\.-]{4})\s{0,}([0-9\.-]+?)$/) {
-        $this->position($5); 
-        $this->residue($3); 
-        $this->chain($4); 
-        $this->asa($10); 
-        $this->indexnum(get_index()); 
-        if ( get_savedpos && get_savedpos != $5  ) {
-            increment_index();
-        }
-        set_savedpos($5);
-    }
-    elsif (/^ATOM/) {
+    my $tmp;
+    my $fields = {
+        position    => [22, 4],
+        residue     => [17, 3],
+        chain       => [21, 1],
+        asa         => [60, 6],
+        atom        => [12, 4],
+    };
+
+	 if (/^ATOM/) {
+
+		 {
+			 no strict 'refs';
+			 while ( my( $field, $substr) = each %{$fields} ) {
+				 $tmp = substr $line, $substr->[0], $substr->[1];
+				 $tmp =~ tr/ //d;
+				 $this->$field($tmp);
+			 }
+		 }
+
+		 if ( get_savedpos && get_savedpos != $this->position  ) {
+			 increment_index();
+		 }
+
+		 set_savedpos($this->position);
+	 }
+	 elsif(/^HETATM/) {
+		 #carp qq{HETATM record is ignored\n};
+		 return 0;
+	 }
+	 else {
         carp qq{Cannot parse line : $_\n};
         return 0;
-    }
-    elsif (/^HETATM/) {
-		 #carp qq{HETATM record is ignored\n};
-        return 0;
-    }
+	 }
+
+#    if (/^ATOM\s+?(\d+?)\s+?(.+?)\s+?(\w{2,3})\s+?(\w{1})\s*(\d+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9\.-]{4})\s{0,}([0-9\.-]+?)$/) {
+#        $this->position($5); 
+#        $this->residue($3); 
+#        $this->chain($4); 
+#        $this->asa($10); 
+#        $this->indexnum(get_index()); 
+#        if ( get_savedpos && get_savedpos != $5  ) {
+#            increment_index();
+#        }
+#        set_savedpos($5);
+#    }
+#    elsif (/^ATOM/) {
+#        carp qq{Cannot parse line : $_\n};
+#        return 0;
+#    }
+#    elsif (/^HETATM/) {
+#		 #carp qq{HETATM record is ignored\n};
+#        return 0;
+#    }
 
     return $this;
 }
