@@ -270,62 +270,6 @@ sub asa_score_around_n_of_random_selected { #{{{ default around 6.
     return $total_asa;
 }
 #}}}
-sub asa_score_around_n_of_random_other_than { #{{{ asa_score_around_n_of_random_other_than(exclude_position, residue, around, chain)
-    my $this = shift;
-	 my $exclude = shift;
-    my $residue = shift;
-    my $around = shift || 6;
-    my $chain = shift || (shift @{[$this->first_str->get_chains()]})->id;
-    my $total_asa = 0;
-    $this->read_asa_score unless $this->asa_stack;
-
-    my $max_index = $this->asa_stack_max_index;
-    my @stack_of_res = grep {
-		 $_->chain eq $chain &&
-		 $_->residue eq $residue &&
-		 $_->position != $exclude } @{$this->asa_stack->rows};
-
-    carp "No $residue Found." and return if scalar @stack_of_res == 0;
-
-    my $chk = 0;
-    my $random_selected;
-    while ( $random_selected = delete $stack_of_res[int(rand($#stack_of_res))] ) {
-
-        unless ( ( $random_selected->indexnum <= ($around/2) )
-            && ($random_selected->indexnum + ($around/2) ) >= $max_index ) {
-            $chk = 1;
-            last;
-        }
-        else {
-            $random_selected = undef;
-        }
-
-    }
-
-    return if $chk == 0;
-
-    my ($start, $end) = (( $random_selected->{position} - ($around/2)), ($random_selected->{position} + 3));
-    my ($starti, $endi) = (( $random_selected->{indexnum} - ($around/2)), ($random_selected->{indexnum} + 3));
-
-    #print "$starti $endi OKOKOK\n";
-    my $tmpr;
-    for my $atom (@{$this->asa_stack->rows}) {
-        if ( $atom->{position} >= $start && $atom->{position} <= $end && $atom->{chain} eq $chain ) {
-            $total_asa += $atom->{asa};
-            unless ( $tmpr ) { $tmpr = $atom->{residue}; } #print $tmpr."\n"; }
-            if ( $tmpr ne $atom->{residue}) {
-                #print $atom->{residue}."\n";
-                $tmpr = $atom->{residue};
-            }
-        }
-        elsif ( $atom->{position} > $end ) {
-            last;
-        }
-    }
-
-    return $total_asa;
-}
-#}}}
 # sub asa_score_of_random_selected {
 #     my $this = shift;
 #     my $residue = shift;
