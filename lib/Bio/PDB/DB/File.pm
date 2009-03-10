@@ -214,7 +214,7 @@ sub get_as_object {
 							last;
 						}
 					}
-					$obj = Bio::PDB::->new_filehandle($gzfh, %args_pdb);
+					$obj = Bio::PDB::->new_from_filehandle($gzfh, %args_pdb);
 				}
 				close $newfh;
 				return $obj;

@@ -125,20 +125,47 @@ sub dbseq {#{{{ exclude SEQADV from SEQRES
     return $result_seq;
 }
 #}}}
-# sub position_unp_to_pdb {
-# 	my $this = shift;
-# 	my $unp_position = shift;
-# 	my $chain = shift || 'A';
-# 
-# 	if ($this->has_annotation('remark_465')) {
-# 		$this->init_annotation('remark_465');
-# 		for my $missing_residue (@{$this->remark_465->rows}) {
-# 			$unp_position-- if ($missing_residue->seq_num <= $unp_position &&
-# 				$missing_residue->chain_id eq $chain);
-# 		}
-# 	}
-# 	return $unp_position;	
-# }
+sub chains {#{{{
+	my $this = shift;
+	return $this->first_str->get_chains();
+}
+#}}}
+sub residues { #{{{
+	my $this = shift;
+	my $chain = shift || (shift @{[$this->first_str->get_chains()]})->id;
+	my $chain_obj = (grep { $_->{'id'} eq $chain } $this->first_str->get_chains())[0];	
+	return $this->first_str->get_residues($chain_obj);
+}
+#}}}
+sub find_residues_by_name { #{{{ find_residues_by_name(name, chain => A, only_position => 0, exclude => [118, 119, 210])
+	my $this = shift;
+	my $name = shift || carp "Usage : find_residues_by_name(name, {chain => A, only_position => 0})";
+	my $opt = {
+		chain => (shift @{[$this->first_str->get_chains()]})->id,
+		only_position => 0,
+		exclude => [],
+		@_
+	};
+
+	my @grepped = grep { $_->id =~ /^$name-\d+/ } $this->residues($opt->{chain});
+
+	if (scalar @{$opt->{exclude}} > 0) {
+		my $position_hash = {};
+		$position_hash->{$_} = 1 for @{$opt->{exclude}};
+		@grepped = 	grep {
+			$_->id =~ /^.+?-(\d+)/;
+			$_ if ( !(defined $position_hash->{$1}) );
+	  	} @grepped;
+	}
+
+	if ( $opt->{only_position} ) {
+		return map { if ($_->id =~ /^$name-(\d+)$/){ $1; } } @grepped;
+	}
+	else {
+		return @grepped;	
+	}
+}
+#}}}
 sub residue_at { #{{{  $this->residue_at(10, 'A');
 	my $this = shift;
 	my $pos = shift;
@@ -205,6 +232,8 @@ sub asa_stack_max_position {#{{{
 sub asa_score_around {#{{{
     my $this = shift;
     my ($range, $midium, $chain ) = @_;
+	 carp "[Bio::PDB#asa_score_around] Less argument: midium is required." unless defined $midium;
+	 $chain ||= (shift @{[$this->first_str->get_chains()]})->id;
     my $start = $midium - ($range/2);
     my $end = $midium + ($range/2);
     my $total_asa;
@@ -270,6 +299,30 @@ sub asa_score_around_n_of_random_selected { #{{{ default around 6.
     return $total_asa;
 }
 #}}}
+sub asa_score_around_n_of_random {#{{{ 09/01/29 : do not use. I have not check this method yet.
+	my $this = shift;
+	my $opt = {
+		exclude => [],
+		around => 6,
+		residue => '',
+		chain => (shift @{[$this->first_str->get_chains()]})->id,
+		@_
+	};
+	my $total_asa = 0;
+	$this->read_asa_score unless $this->asa_stack;
+	
+	my $max_index = $this->asa_stack_max_index;	
+	my @stack_of_res = $this->find_residues_by_name($opt->{residue}, {
+			'chain' => $opt->chain,
+		});
+	my $position_hash = {};
+	$position_hash->{$_} = 1 for @{$opt->{exclude}};
+	@stack_of_res = grep { !(defined $position_hash->{$_->position}) } @stack_of_res;
+
+	my $target = delete $stack_of_res[int(rand($#stack_of_res))];
+
+	return $this->asa_score_around( $opt->{around}, $target->position, $opt->{chain} );
+}#}}}
 sub asa_score_around_n_of_random_other_than { #{{{ asa_score_around_n_of_random_other_than(exclude_position, residue, around, chain)
     my $this = shift;
 	 my $exclude = shift;
@@ -326,14 +379,6 @@ sub asa_score_around_n_of_random_other_than { #{{{ asa_score_around_n_of_random_
     return $total_asa;
 }
 #}}}
-# sub asa_score_of_random_selected {
-#     my $this = shift;
-#     my $residue = shift;
-#     my $chain = shift || 'A';
-#     my $position = int(rand($this->asa_stack_max_position));
-#     return $this->asa_score_at($position, $chain);
-# }
-#
 sub asa_score_at { #{{{
     my $this = shift;
     my $position = shift;

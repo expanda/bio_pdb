@@ -72,7 +72,7 @@ use warnings;
 use Carp qw{croak carp};
 use base qw{Class::Accessor::Fast};
 __PACKAGE__->mk_accessors(qw{
-  position residue chain asa indexnum atom
+  position residue chain asa indexnum atom is_hetatm
 });
 
 {
@@ -118,6 +118,7 @@ sub new {
 				 $tmp = substr $line, $substr->[0], $substr->[1];
 				 $tmp =~ tr/ //d;
 				 $this->$field($tmp);
+				 $this->is_hetatm(0);
 			 }
 		 }
 
@@ -131,7 +132,15 @@ sub new {
 	 }
 	 elsif(/^HETATM/) {
 		 #carp qq{HETATM record is ignored\n};
-		 return 0;
+		 {
+			 no strict 'refs';
+			 while ( my( $field, $substr) = each %{$fields} ) {
+				 $tmp = substr $line, $substr->[0], $substr->[1];
+				 $tmp =~ tr/ //d;
+				 $this->$field($tmp);
+				 $this->is_hetatm(1);
+			 }
+		 }
 	 }
 	 else {
         carp qq{Cannot parse line : $_\n};
