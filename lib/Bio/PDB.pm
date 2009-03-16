@@ -144,7 +144,8 @@ sub residues_to_s {#{{{
 	my $str;
 	for my $res ( $this->residues ) {	
 		if ( $res->id =~ /^([A-Z]+?)-(\d+?)$/ ) {
-			$str .= Bio::PDB::Util->to_1($1);
+			my $letter = Bio::PDB::Util->to_1($1);
+			$str .= $letter if $letter;
 		}
 	}
 	return $str;

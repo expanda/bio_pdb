@@ -28,7 +28,13 @@ sub to_3 {
          'H' => 'HIS',
          'P' => 'PRO',
     };
-    return $map->{uc $res};
+	 unless ($map->{uc $res}) {
+		 #carp "There is no Entry : $res";
+		 return undef;
+	 }
+	 else {
+		 return $map->{uc $res};
+	 }
 }
 
 sub to_1 {
@@ -56,10 +62,13 @@ sub to_1 {
         HIS => 'H',
         PRO => 'P',
     };
-
-	 carp "There is no Entry : $res" unless ($map->{uc $res});
-
-	 return $map->{uc $res};
+	 unless ($map->{uc $res}) {
+#		 carp "There is no Entry : $res";
+		 return undef;
+	 }
+	 else {
+		 return $map->{uc $res};
+	 }
 }
 
 1;
