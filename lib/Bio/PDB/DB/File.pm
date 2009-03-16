@@ -101,7 +101,7 @@ sub new {
             mkpath(${[File::Spec->splitpath($file_path)]}[1], {error => \my $err});
             for my $diag (@$err) {
                 my ($f, $m)  = each %$diag;
-                print "Failed to make directory : $m\n" if $f eq '';
+                print STDERR "Failed to make directory : $m\n" if $f eq '';
             }
         }
 
@@ -139,7 +139,7 @@ sub new {
 #}}}
 #{{{ check_disk_usage : check disk usage and decrease filecache.
     sub check_disk_usage {
-		 print "MAX : $max_cache_size\tCUR : $current_cache_size\n";
+		 print STDERR "MAX : $max_cache_size\tCUR : $current_cache_size\n";
         if ( $max_cache_size * 0.95 < $current_cache_size ) {
             my $number_of_remove_files = 10;
             for my $id (( keys %{$caches} )[1..$number_of_remove_files]) {
@@ -231,7 +231,7 @@ sub get_as_filehandle {
     my $id = lc shift;
 
     if ($this->exists_in_cache($id)) {
-        print "get from cache\n";
+        print STDERR "get from cache\n";
         return $this->get_cache($id);
     }
     else {

@@ -12,6 +12,7 @@ use Bio::PDB::Annotation::SEQADV;
 use Bio::PDB::Annotation::OBSLTE;
 use Bio::PDB::Annotation::REMARK::465;
 use Bio::PDB::ASA;
+use Bio::PDB::Util;
 
 our $VERSION = '0.0.1';
 
@@ -137,7 +138,18 @@ sub residues { #{{{
 	return $this->first_str->get_residues($chain_obj);
 }
 #}}}
-sub find_residues_by_name { #{{{ find_residues_by_name(name, chain => A, only_position => 0, exclude => [118, 119, 210])
+sub residues_to_s {#{{{
+	my $this = shift;
+	my $chain = shift || (shift @{[$this->first_str->get_chains()]})->id;
+	my $str;
+	for my $res ( $this->residues ) {	
+		if ( $res->id =~ /^([A-Z]+?)-(\d+?)$/ ) {
+			$str .= Bio::PDB::Util->to_1($1);
+		}
+	}
+	return $str;
+}#}}}
+sub find_residues_by_name { #{{{ find_residues_by_name(name, chain => A, only_position => 1, exclude => [118, 119, 210])
 	my $this = shift;
 	my $name = shift || carp "Usage : find_residues_by_name(name, {chain => A, only_position => 0})";
 	my $opt = {
