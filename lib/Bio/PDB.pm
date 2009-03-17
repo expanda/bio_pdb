@@ -142,7 +142,7 @@ sub residues_to_s {#{{{
 	my $this = shift;
 	my $chain = shift || (shift @{[$this->first_str->get_chains()]})->id;
 	my $str;
-	for my $res ( $this->residues ) {	
+	for my $res ( $this->residues($chain) ) {	
 		if ( $res->id =~ /^([A-Z]+?)-(\d+?)$/ ) {
 			my $letter = Bio::PDB::Util->to_1($1);
 			$str .= $letter if $letter;
