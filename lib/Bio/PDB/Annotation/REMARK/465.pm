@@ -10,23 +10,23 @@ __PACKAGE__->mk_accessors(
 
 sub new {
     my ($class, $annotations) = @_;
-	 return unless $annotations;
-	 my $string = $annotations->[0]->value;
-	 my $this = bless {}, $class;
-	 my $i=0;
-	 my @rows;
+    return unless $annotations;
+    my $string = $annotations->[0]->value;
+    my $this = bless {}, $class;
+    my $i=0;
+    my @rows;
 
-	 while (my $l = substr $string, $i, 59) {
-		 if ($l =~ /[A-Z]*\s+?[A-Z]{3}\s+?[A-Z]{1}\s+?\d+?\s+?\d*/) {
-			 push @rows, Bio::PDB::Annotation::REMARK::465::Row->new($l);
-		 }
-		 $i += 59;
+    while (my $l = substr $string, $i, 59) {
+        if ($l =~ /[A-Z]*\s+?[A-Z]{3}\s+?[A-Z]{1}\s+?\d+?\s+?\d*/) {
+            push @rows, Bio::PDB::Annotation::REMARK::465::Row->new($l);
+        }
+        $i += 59;
     }
 
-	 $this->rows(\@rows);
+    $this->rows(\@rows);
 
     return $this;
- }
+}
 
 package Bio::PDB::Annotation::REMARK::465::Row;
 

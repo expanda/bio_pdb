@@ -54,15 +54,15 @@ sub next {
 
 sub prev {
     my $this = shift;
-   my $rows = $this->rows;
-   if ($this->cursor != 1) {
-       my $retrow = $rows->[$this->cursor];
-       $this->cursor(($this->cursor - 1));
-       return $retrow;
-   }
-   else {
-       return undef; 
-   }
+    my $rows = $this->rows;
+    if ($this->cursor != 1) {
+        my $retrow = $rows->[$this->cursor];
+        $this->cursor(($this->cursor - 1));
+        return $retrow;
+    }
+    else {
+        return undef; 
+    }
 }
 
 package Bio::PDB::ASA::Row;
@@ -72,8 +72,8 @@ use warnings;
 use Carp qw{croak carp};
 use base qw{Class::Accessor::Fast};
 __PACKAGE__->mk_accessors(qw{
-  position residue chain asa indexnum atom is_hetatm
-});
+        position residue chain asa indexnum atom is_hetatm
+    });
 
 {
     my $index = 0;
@@ -110,42 +110,41 @@ sub new {
         atom        => [12, 4],
     };
 
-	 if (/^ATOM/) {
+    if (/^ATOM/) {
 
-		 {
-			 no strict 'refs';
-			 while ( my( $field, $substr) = each %{$fields} ) {
-				 $tmp = substr $line, $substr->[0], $substr->[1];
-				 $tmp =~ tr/ //d;
-				 $this->$field($tmp);
-				 $this->is_hetatm(0);
-			 }
-		 }
+        {
+            no strict 'refs';
+            while ( my( $field, $substr) = each %{$fields} ) {
+                $tmp = substr $line, $substr->[0], $substr->[1];
+                $tmp =~ tr/ //d;
+                $this->$field($tmp);
+                $this->is_hetatm(0);
+            }
+        }
 
-		 $this->indexnum(get_index()); 
+        $this->indexnum(get_index());
 
-		 if ( get_savedpos && get_savedpos != $this->position  ) {
-			 increment_index();
-		 }
+        if ( get_savedpos && get_savedpos != $this->position  ) {
+            increment_index();
+        }
 
-		 set_savedpos($this->position);
-	 }
-	 elsif(/^HETATM/) {
-		 #carp qq{HETATM record is ignored\n};
-		 {
-			 no strict 'refs';
-			 while ( my( $field, $substr) = each %{$fields} ) {
-				 $tmp = substr $line, $substr->[0], $substr->[1];
-				 $tmp =~ tr/ //d;
-				 $this->$field($tmp);
-				 $this->is_hetatm(1);
-			 }
-		 }
-	 }
-	 else {
+        set_savedpos($this->position);
+    }
+    elsif(/^HETATM/) {
+        {
+            no strict 'refs';
+            while ( my( $field, $substr) = each %{$fields} ) {
+                $tmp = substr $line, $substr->[0], $substr->[1];
+                $tmp =~ tr/ //d;
+                $this->$field($tmp);
+                $this->is_hetatm(1);
+            }
+        }
+    }
+    else {
         carp qq{Cannot parse line : $_\n};
         return 0;
-	 }
+    }
 
 #    if (/^ATOM\s+?(\d+?)\s+?(.+?)\s+?(\w{2,3})\s+?(\w{1})\s*(\d+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9\.-]{4})\s{0,}([0-9\.-]+?)$/) {
 #        $this->position($5); 

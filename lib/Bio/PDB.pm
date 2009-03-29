@@ -22,13 +22,13 @@ __PACKAGE__->mk_accessors(
     qw{id asa_file filename stream
     first_str sequence asa_stack
     obslte annotation_keys fast
-	 dbref seqadv remark_465 });
+    dbref seqadv remark_465 });
 
 # Subroutine Alias
 CHECK {
     no strict 'refs';
-   *{__PACKAGE__.'::obsolete'} = \&obslte;
-   *{__PACKAGE__.'::asa'} = \&asa_stack;
+    *{__PACKAGE__.'::obsolete'} = \&obslte;
+    *{__PACKAGE__.'::asa'} = \&asa_stack;
 }
 
 sub new {#{{{
@@ -45,7 +45,7 @@ sub new_from_filehandle {
 
     my $args = {
         fast => 0, 
-       @_
+        @_
     };
 
     my $this = bless {} ,$class;
@@ -95,7 +95,7 @@ sub init_annotation { #{{{
     my @hit;
     if ( @hit = grep { $annotation_key eq $_ } @supported_annotations ) {
         my $class_name = uc shift @hit;
-		  $class_name =~ s/_/::/g;
+        $class_name =~ s/_/::/g;
         {
             no strict 'refs';
             unless ( $this->$annotation_key() ) {
@@ -127,73 +127,72 @@ sub dbseq {#{{{ exclude SEQADV from SEQRES
 }
 #}}}
 sub chains {#{{{
-	my $this = shift;
-	return $this->first_str->get_chains();
+    my $this = shift;
+    return $this->first_str->get_chains();
 }
 #}}}
 sub residues { #{{{
-	my $this = shift;
-	my $chain = shift || (shift @{[$this->first_str->get_chains()]})->id;
-	my $chain_obj = (grep { $_->{'id'} eq $chain } $this->first_str->get_chains())[0];	
-	return $this->first_str->get_residues($chain_obj);
+    my $this = shift;
+    my $chain = shift || (shift @{[$this->first_str->get_chains()]})->id;
+    my $chain_obj = (grep { $_->{'id'} eq $chain } $this->first_str->get_chains())[0];	
+    return $this->first_str->get_residues($chain_obj);
 }
 #}}}
 sub residues_to_s {#{{{
-	my $this = shift;
-	my $chain = shift || (shift @{[$this->first_str->get_chains()]})->id;
-	my $str;
-	for my $res ( $this->residues($chain) ) {	
-		if ( $res->id =~ /^([A-Z]+?)-(\d+?)$/ ) {
-			my $letter = Bio::PDB::Util->to_1($1);
-			$str .= $letter if $letter;
-		}
-	}
-	return $str;
+    my $this = shift;
+    my $chain = shift || (shift @{[$this->first_str->get_chains()]})->id;
+    my $str;
+    for my $res ( $this->residues($chain) ) {	
+        if ( $res->id =~ /^([A-Z]+?)-(\d+?)$/ ) {
+            my $letter = Bio::PDB::Util->to_1($1);
+            $str .= $letter if $letter;
+        }
+    }
+    return $str;
 }#}}}
 sub find_residues_by_name { #{{{ find_residues_by_name(name, chain => A, only_position => 1, exclude => [118, 119, 210])
-	my $this = shift;
-	my $name = shift || carp "Usage : find_residues_by_name(name, {chain => A, only_position => 0})";
-	my $opt = {
-		chain => (shift @{[$this->first_str->get_chains()]})->id,
-		only_position => 0,
-		exclude => [],
-		@_
-	};
+    my $this = shift;
+    my $name = shift || carp "Usage : find_residues_by_name(name, {chain => A, only_position => 0})";
+    my $opt = {
+        chain => (shift @{[$this->first_str->get_chains()]})->id,
+        only_position => 0,
+        exclude => [],
+        @_
+    };
 
-	my @grepped = grep { $_->id =~ /^$name-\d+/ } $this->residues($opt->{chain});
+    my @grepped = grep { $_->id =~ /^$name-\d+/ } $this->residues($opt->{chain});
 
-	if (scalar @{$opt->{exclude}} > 0) {
-		my $position_hash = {};
-		$position_hash->{$_} = 1 for @{$opt->{exclude}};
-		@grepped = 	grep {
-			$_->id =~ /^.+?-(\d+)/;
-			$_ if ( !(defined $position_hash->{$1}) );
-	  	} @grepped;
-	}
+    if (scalar @{$opt->{exclude}} > 0) {
+        my $position_hash = {};
+        $position_hash->{$_} = 1 for @{$opt->{exclude}};
+        @grepped = 	grep {
+            $_->id =~ /^.+?-(\d+)/;
+            $_ if ( !(defined $position_hash->{$1}) );
+        } @grepped;
+    }
 
-	if ( $opt->{only_position} ) {
-		return map { if ($_->id =~ /^$name-(\d+)$/){ $1; } } @grepped;
-	}
-	else {
-		return @grepped;	
-	}
+    if ( $opt->{only_position} ) {
+        return map { if ($_->id =~ /^$name-(\d+)$/){ $1; } } @grepped;
+    }
+    else {
+        return @grepped;	
+    }
 }
 #}}}
 sub residue_at { #{{{  $this->residue_at(10, 'A');
-	my $this = shift;
-	my $pos = shift;
-	my $chain = shift || (shift @{[$this->first_str->get_chains()]})->id;
-	#print $pos;
-	my $chain_obj = (grep { $_->{'id'} eq $chain } $this->first_str->get_chains())[0];
-	if ($chain_obj) {
-		for my $res ( $this->first_str->get_residues($chain_obj) ) {
-			if ( $res->id =~ /^([A-Z]+?)-(\d+?)$/ ) {
-				#print $2."\n";
-				return $1 if ($2 == $pos);	
-			}
-		}
-	}
-	return 0;
+    my $this = shift;
+    my $pos = shift;
+    my $chain = shift || (shift @{[$this->first_str->get_chains()]})->id;
+    #print $pos;
+    my $chain_obj = (grep { $_->{'id'} eq $chain } $this->first_str->get_chains())[0];
+    if ($chain_obj) {
+        for my $res ( $this->first_str->get_residues($chain_obj) ) {
+            if ( $res->id =~ /^([A-Z]+?)-(\d+?)$/ ) {
+                return $1 if ($2 == $pos);
+            }
+        }
+    }
+    return 0;
 }#}}}
 sub start_res_num_of {#{{{
     carp "[TODO] start_res_num_of has not been implemented\n";
@@ -245,8 +244,8 @@ sub asa_stack_max_position {#{{{
 sub asa_score_around {#{{{
     my $this = shift;
     my ($range, $midium, $chain ) = @_;
-	 carp "[Bio::PDB#asa_score_around] Less argument: midium is required." unless defined $midium;
-	 $chain ||= (shift @{[$this->first_str->get_chains()]})->id;
+    carp "[Bio::PDB#asa_score_around] Less argument: midium is required." unless defined $midium;
+    $chain ||= (shift @{[$this->first_str->get_chains()]})->id;
     my $start = $midium - ($range/2);
     my $end = $midium + ($range/2);
     my $total_asa;
@@ -257,7 +256,7 @@ sub asa_score_around {#{{{
         if ( $start <= $row->position && $row->position <= $end && $row->chain eq $chain ); 
     }
 
-   return $total_asa;
+    return $total_asa;
 }
 #}}}
 sub asa_score_around_n_of_random_selected { #{{{ default around 6.
@@ -313,32 +312,32 @@ sub asa_score_around_n_of_random_selected { #{{{ default around 6.
 }
 #}}}
 sub asa_score_around_n_of_random {#{{{ 09/01/29 : do not use. I have not check this method yet.
-	my $this = shift;
-	my $opt = {
-		exclude => [],
-		around => 6,
-		residue => '',
-		chain => (shift @{[$this->first_str->get_chains()]})->id,
-		@_
-	};
-	my $total_asa = 0;
-	$this->read_asa_score unless $this->asa_stack;
-	
-	my $max_index = $this->asa_stack_max_index;	
-	my @stack_of_res = $this->find_residues_by_name($opt->{residue}, {
-			'chain' => $opt->chain,
-		});
-	my $position_hash = {};
-	$position_hash->{$_} = 1 for @{$opt->{exclude}};
-	@stack_of_res = grep { !(defined $position_hash->{$_->position}) } @stack_of_res;
+    my $this = shift;
+    my $opt = {
+        exclude => [],
+        around => 6,
+        residue => '',
+        chain => (shift @{[$this->first_str->get_chains()]})->id,
+        @_
+    };
+    my $total_asa = 0;
+    $this->read_asa_score unless $this->asa_stack;
 
-	my $target = delete $stack_of_res[int(rand($#stack_of_res))];
+    my $max_index = $this->asa_stack_max_index;	
+    my @stack_of_res = $this->find_residues_by_name($opt->{residue}, {
+            'chain' => $opt->chain,
+        });
+    my $position_hash = {};
+    $position_hash->{$_} = 1 for @{$opt->{exclude}};
+    @stack_of_res = grep { !(defined $position_hash->{$_->position}) } @stack_of_res;
 
-	return $this->asa_score_around( $opt->{around}, $target->position, $opt->{chain} );
+    my $target = delete $stack_of_res[int(rand($#stack_of_res))];
+
+    return $this->asa_score_around( $opt->{around}, $target->position, $opt->{chain} );
 }#}}}
 sub asa_score_around_n_of_random_other_than { #{{{ asa_score_around_n_of_random_other_than(exclude_position, residue, around, chain)
     my $this = shift;
-	 my $exclude = shift;
+    my $exclude = shift;
     my $residue = shift;
     my $around = shift || 6;
     my $chain = shift || (shift @{[$this->first_str->get_chains()]})->id;
@@ -347,9 +346,9 @@ sub asa_score_around_n_of_random_other_than { #{{{ asa_score_around_n_of_random_
 
     my $max_index = $this->asa_stack_max_index;
     my @stack_of_res = grep {
-		 $_->chain eq $chain &&
-		 $_->residue eq $residue &&
-		 $_->position != $exclude } @{$this->asa_stack->rows};
+        $_->chain eq $chain &&
+        $_->residue eq $residue &&
+        $_->position != $exclude } @{$this->asa_stack->rows};
 
     carp "No $residue Found." and return if scalar @stack_of_res == 0;
 

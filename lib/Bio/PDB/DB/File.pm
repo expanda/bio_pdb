@@ -112,7 +112,7 @@ sub new {
         print $out $_ while (<$infh>);
         $caches->{$id} = $file_path;
         close $out;
-		  close $infh;
+        close $infh;
         # reload cache status
         $current_cache_size += ( stat ( $file_path ))[7];
         open my $returnfh, $file_path or croak "Failed to open file. : $!";
@@ -139,7 +139,7 @@ sub new {
 #}}}
 #{{{ check_disk_usage : check disk usage and decrease filecache.
     sub check_disk_usage {
-		 print STDERR "MAX : $max_cache_size\tCUR : $current_cache_size\n";
+        print STDERR "MAX : $max_cache_size\tCUR : $current_cache_size\n";
         if ( $max_cache_size * 0.95 < $current_cache_size ) {
             my $number_of_remove_files = 10;
             for my $id (( keys %{$caches} )[1..$number_of_remove_files]) {
@@ -153,11 +153,11 @@ sub new {
     sub clear_cache {
         my $this = shift;
         while (my ($id, $path) = each %{$caches} ){
-        unlink $path;
-       };
-       #find(sub{ if ( -d $_ && $_ !~ /^\.{1,2}$/ ) {rmdir $_ || croak "clear_cache : $!";} }, $this->cache_dir );
-       undef $caches;
-       return 1;
+            unlink $path;
+        };
+        #find(sub{ if ( -d $_ && $_ !~ /^\.{1,2}$/ ) {rmdir $_ || croak "clear_cache : $!";} }, $this->cache_dir );
+        undef $caches;
+        return 1;
     }
 }
 #}}}
@@ -169,22 +169,22 @@ sub get_as_object {
 
 
     if ($this->exists_in_cache($id)) {
-		 my $obj;
-       eval { $obj = Bio::PDB->new_from_filehandle($this->get_cache($id), %args_pdb);};
-		 if ($@) {
-			 my $dir = $this->directory_name_for($id);
-			 my $archive_path = File::Spec->join($this->pdb_dir, $dir, $this->archive_name_for($id));	 
-			 my $fh;
-			 for my $category ( $this->pdb_dir, $this->model_dir, $this->obsolete_dir ) {
-				 my $path = File::Spec->join( $category, $dir, $this->archive_name_for($id));
-				 if (-f $path) {
-					 $fh = IO::Uncompress::Gunzip->new($path) or die "GunzipError : $GunzipError";
-                last;
-				 }
-			 }
-			 $obj = Bio::PDB->new_from_filehandle($fh, %args_pdb); 
-		 }
-		 return $obj;
+        my $obj;
+        eval { $obj = Bio::PDB->new_from_filehandle($this->get_cache($id), %args_pdb);};
+        if ($@) {
+            my $dir = $this->directory_name_for($id);
+            my $archive_path = File::Spec->join($this->pdb_dir, $dir, $this->archive_name_for($id));
+            my $fh;
+            for my $category ( $this->pdb_dir, $this->model_dir, $this->obsolete_dir ) {
+                my $path = File::Spec->join( $category, $dir, $this->archive_name_for($id));
+                if (-f $path) {
+                    $fh = IO::Uncompress::Gunzip->new($path) or die "GunzipError : $GunzipError";
+                    last;
+                }
+            }
+            $obj = Bio::PDB->new_from_filehandle($fh, %args_pdb); 
+        }
+        return $obj;
     }
     else {
         my $dir = $this->directory_name_for($id);
@@ -202,22 +202,22 @@ sub get_as_object {
 
         if ($fh) {
             my $newfh = $this->set_cache($id, $fh);
-				my $obj;
+            my $obj;
             eval{ $obj = Bio::PDB->new_from_filehandle($newfh, %args_pdb);};
-				if ($@) {
-					carp qq{$@};	
-					my $gzfh;
-					for my $category ( $this->pdb_dir, $this->model_dir, $this->obsolete_dir ) {
-						my $path = File::Spec->join( $category, $dir, $this->archive_name_for($id));
-						if (-f $path) {
-							$gzfh = IO::Uncompress::Gunzip->new($path) or die "GunzipError : $GunzipError";
-							last;
-						}
-					}
-					$obj = Bio::PDB::->new_from_filehandle($gzfh, %args_pdb);
-				}
-				close $newfh;
-				return $obj;
+            if ($@) {
+                carp qq{$@};	
+                my $gzfh;
+                for my $category ( $this->pdb_dir, $this->model_dir, $this->obsolete_dir ) {
+                    my $path = File::Spec->join( $category, $dir, $this->archive_name_for($id));
+                    if (-f $path) {
+                        $gzfh = IO::Uncompress::Gunzip->new($path) or die "GunzipError : $GunzipError";
+                        last;
+                    }
+                }
+                $obj = Bio::PDB::->new_from_filehandle($gzfh, %args_pdb);
+            }
+            close $newfh;
+            return $obj;
         }
         else {
             return 0;
@@ -279,12 +279,12 @@ sub init_database {
 # sub download : download PDB datas #{{{
 #
 # RSYNC=/usr/bin/rsync  # location of local rsync
-# 
+#
 # # You should NOT CHANGE THE NEXT TWO LINES
-# 
+#
 # SERVER=rsync.wwpdb.org                               # remote server name
 # PORT=33444                                           # port remote server is using
-# 
+#
 # ${RSYNC} -rlpt -v -z --delete --port=$PORT $SERVER::ftp_data/structures/divided/pdb/ $MIRRORDIR > $LOGFILE 3>/dev/null
 # ${RSYNC} -rlpt -v -z --delete --port=$PORT $SERVER::ftp_data/structures/obsolete/pdb/ $OBSOLETE > $LOGFILE 2>/dev/null
 # ${RSYNC} -rlpt -v -z --delete --port=$PORT $SERVER::ftp_data/structures/models/current/ $THEORITICAL > $LOGFILE 2>/dev/null
