@@ -15,6 +15,7 @@ use Bio::PDB::Annotation::OBSLTE;
 use Bio::PDB::Annotation::REMARK::465;
 use Bio::PDB::ASA;
 use Bio::PDB::Util;
+use Bio::PDB::Util::ResTable;
 
 our $VERSION = '0.0.1';
 
@@ -24,7 +25,7 @@ __PACKAGE__->mk_accessors(
     qw{id asa_file filename stream
     first_str sequence asa_stack
     obslte annotation_keys fast
-    dbref seqadv remark_465 });
+    dbref seqadv remark_465 res_table});
 
 # Subroutine Alias
 CHECK {
@@ -33,13 +34,13 @@ CHECK {
     *{__PACKAGE__.'::asa'} = \&asa_stack;
 }
 
-sub new {#{{{
+sub new { #{{{
     my $class = shift;
     my $fname = shift;
     open my $fh, $fname or croak "new : $!";
 
     __PACKAGE__->new_from_filehandle($fh, @_);
-}#}}}
+} #}}}
 sub new_from_filehandle {#{{{
     my $class = shift;
     my $filehandle = shift;
@@ -73,13 +74,15 @@ sub new_from_filehandle {#{{{
         $this->init_annotation('obslte');
     }
 
+    if ($this->has_annotation('seqadv')) {
+        $this->init_annotation('seqadv');
+    }
+
+    $this->res_table(Bio::PDB::Util::ResTable->new($this->seqadv));
+
     unless ( $this->fast ) {
         if ($this->has_annotation('dbref')) {
             $this->init_annotation('dbref');
-        }
-
-        if ($this->has_annotation('seqadv')) {
-            $this->init_annotation('seqadv');
         }
     }
 
@@ -142,17 +145,25 @@ sub chains {#{{{
 sub residues { #{{{
     my $this = shift;
     my $chain = shift || (shift @{[$this->first_str->get_chains()]})->id;
-    my $chain_obj = (grep { $_->{'id'} eq $chain } $this->first_str->get_chains())[0];	
-    return $this->first_str->get_residues($chain_obj);
+    my $chainobj;
+    for my $c ($this->first_str->get_chains()) {
+        $chainobj = $c and last if ($c->{id} eq $chain);
+    }
+    confess "Cannot find chain." unless $chainobj;
+    return $this->first_str->get_residues($chainobj);
 }
 #}}}
 sub residues_to_s {#{{{
     my $this = shift;
     my $chain = shift || (shift @{[$this->first_str->get_chains()]})->id;
+    my $opts = {
+        ignore => [],
+        @_
+    };
     my $str;
-    for my $res ( $this->residues($chain) ) {	
+    for my $res ( $this->residues($chain) ) {
         if ( $res->id =~ /^([A-Z]+?)-(\d+?)$/ ) {
-            my $letter = Bio::PDB::Util->to_1($1);
+            my $letter = $this->res_table->to_1($1);
             $str .= $letter if $letter;
         }
     }
@@ -192,15 +203,43 @@ sub residue_at { #{{{  $this->residue_at(10, 'A');
     my $pos = shift;
     my $chain = shift || (shift @{[$this->first_str->get_chains()]})->id;
     #print $pos;
-    my $chain_obj = (grep { $_->{'id'} eq $chain } $this->first_str->get_chains())[0];
-    if ($chain_obj) {
-        for my $res ( $this->first_str->get_residues($chain_obj) ) {
-            if ( $res->id =~ /^([A-Z]+?)-(\d+?)$/ ) {
+    my $chainobj;
+    for my $c ($this->first_str->get_chains()) {
+        $chainobj = $c and last if ($c->{id} eq $chain);
+    }
+
+    if ($chainobj) {
+        for my $res ( $this->first_str->get_residues($chainobj) ) {
+            if ( $res->id =~ /^([A-Z]+?)-(\S+?)$/ ) {
                 return $1 if ($2 == $pos);
             }
         }
     }
-    return 0;
+    else {
+        carp "Not Found Chain $chain\n";
+    }
+}#}}}
+sub residue_start_from { #{{{ # position from start (not seqid.)
+    my $this = shift;
+    my $pos = shift;
+    my $chain = shift || (shift @{[$this->first_str->get_chains()]})->id;
+    #print $pos;
+    my $chainobj;
+    for my $c ($this->first_str->get_chains()) {
+        $chainobj = $c and last if ($c->{id} eq $chain);
+    }
+    my $cpos = 1;
+    if ($chainobj) {
+        for my $res ( $this->first_str->get_residues($chainobj) ) {
+            if ( $res->id =~ /^([A-Z]+?)-(\S+?)$/ ) {
+                return ( $1, $2 ) if ($cpos == $pos);
+                $cpos++;
+            }
+        }
+    }
+    else {
+        carp "Not Found Chain $chain\n";
+    }
 }#}}}
 sub start_res_num_of {#{{{
     carp "[TODO] start_res_num_of has not been implemented\n";
