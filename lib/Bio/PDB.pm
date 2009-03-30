@@ -7,6 +7,8 @@ use Array::Utils qw(:all);
 use Carp qw{croak confess carp};
 use Data::Dumper;
 
+use Error qw{:try};
+
 use Bio::PDB::Annotation::DBREF;
 use Bio::PDB::Annotation::SEQADV;
 use Bio::PDB::Annotation::OBSLTE;
@@ -37,9 +39,8 @@ sub new {#{{{
     open my $fh, $fname or croak "new : $!";
 
     __PACKAGE__->new_from_filehandle($fh, @_);
-}
-
-sub new_from_filehandle {
+}#}}}
+sub new_from_filehandle {#{{{
     my $class = shift;
     my $filehandle = shift;
 
@@ -50,8 +51,15 @@ sub new_from_filehandle {
 
     my $this = bless {} ,$class;
     $this->fast($args->{fast});
-    $this->stream(Bio::Structure::IO->new( -fh => $filehandle , -format => 'PDB' ));
-    $this->first_str($this->stream->next_structure());
+    try {
+        $this->stream(Bio::Structure::IO->new( -fh => $filehandle , -format => 'PDB' ));
+        $this->first_str($this->stream->next_structure()) 
+    }
+    catch Bio::Root::Exception with {
+        my $err = shift;
+        print "$err\n";
+        return undef ;
+    }
 
     my $annotation_keys ;
 
@@ -63,7 +71,7 @@ sub new_from_filehandle {
 
     if ($this->has_annotation('obslte')) {
         $this->init_annotation('obslte');
-    } 
+    }
 
     unless ( $this->fast ) {
         if ($this->has_annotation('dbref')) {
@@ -76,8 +84,7 @@ sub new_from_filehandle {
     }
 
     return $this;
-}
-#}}}
+}#}}}
 sub replaced {#{{{
     my $this = shift;
     if ($this->obslte) {
@@ -111,6 +118,7 @@ sub has_annotation {#{{{
     return defined $annotation_key->{+( shift )};
 }
 #}}}
+############ Utility methods
 sub dbseq {#{{{ exclude SEQADV from SEQRES
     my $this = shift;
     my $chain = shift || (shift @{[$this->first_str->get_chains()]})->id;
@@ -198,6 +206,7 @@ sub start_res_num_of {#{{{
     carp "[TODO] start_res_num_of has not been implemented\n";
 }
 #}}}
+############ ASA handling methods
 sub attach_asa { #{{{
     my $this = shift;
     my $filename = shift;

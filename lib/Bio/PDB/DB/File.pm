@@ -35,6 +35,7 @@ sub new {
         model_dir    => '',
         obsolete_dir => '',
         cache_dir    => '/tmp/pdb', # tmp file directory
+        nolimit => 0,
         @_
     };
 
@@ -104,10 +105,6 @@ sub new {
                 print STDERR "Failed to make directory : $m\n" if $f eq '';
             }
         }
-
-        #print "Cache to $file_path\n";
-        #print Dumper $infh;
-
         open my $out, ">$file_path" or croak "Failed to open file. : $!";
         print $out $_ while (<$infh>);
         $caches->{$id} = $file_path;
@@ -139,13 +136,14 @@ sub new {
 #}}}
 #{{{ check_disk_usage : check disk usage and decrease filecache.
     sub check_disk_usage {
-        print STDERR "MAX : $max_cache_size\tCUR : $current_cache_size\n";
         if ( $max_cache_size * 0.95 < $current_cache_size ) {
             my $number_of_remove_files = 10;
-            for my $id (( keys %{$caches} )[1..$number_of_remove_files]) {
+            my $current_files = scalar ( keys %{$caches} ) -1;
+            my $limit = ( $number_of_remove_files > $current_files ) ?  $current_files : $number_of_remove_files ;
+            for my $id (( keys %{$caches} )[1..$limit]) {
                 unlink $caches->{$id};
                 delete $caches->{$id};
-            }       
+            }
         }
         return 1;
     }
@@ -171,14 +169,16 @@ sub get_as_object {
     if ($this->exists_in_cache($id)) {
         my $obj;
         eval { $obj = Bio::PDB->new_from_filehandle($this->get_cache($id), %args_pdb);};
-        if ($@) {
+        if ( ($@ or ( ! defined $obj )) and
+             ($this->model_dir or $this->obsolete_dir)) {
             my $dir = $this->directory_name_for($id);
             my $archive_path = File::Spec->join($this->pdb_dir, $dir, $this->archive_name_for($id));
             my $fh;
             for my $category ( $this->pdb_dir, $this->model_dir, $this->obsolete_dir ) {
                 my $path = File::Spec->join( $category, $dir, $this->archive_name_for($id));
                 if (-f $path) {
-                    $fh = IO::Uncompress::Gunzip->new($path) or die "GunzipError : $GunzipError";
+                    $fh = IO::Uncompress::Gunzip->new($path)
+                        or die "GunzipError : $GunzipError";
                     last;
                 }
             }
@@ -195,7 +195,8 @@ sub get_as_object {
         for my $category ( $this->pdb_dir, $this->model_dir, $this->obsolete_dir ) {
             my $path = File::Spec->join( $category, $dir, $this->archive_name_for($id));
             if (-f $path) {
-                $fh = IO::Uncompress::Gunzip->new($path) or die "GunzipError : $GunzipError";
+                $fh = IO::Uncompress::Gunzip->new($path)
+                    or die "GunzipError : $GunzipError";
                 last;
             }
         }

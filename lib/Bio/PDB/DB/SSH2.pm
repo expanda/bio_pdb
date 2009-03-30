@@ -23,7 +23,7 @@ use Data::Dumper;
 
 __PACKAGE__->mk_accessors(qw{connection cache remote_dir cache_dir pdb_dir});
 
-sub new {#{{{
+sub new { #{{{
     my ($class) = shift;
     my $options = {
         host         => '',
@@ -35,8 +35,6 @@ sub new {#{{{
         @_
     };
 
-    print Dumper $options;
-
     croak "Required options : host, user, private_key"
     if ! $options->{host} or ! $options->{user} or ! $options->{private_key};
 
@@ -45,7 +43,7 @@ sub new {#{{{
     $self->connection(Net::SSH2->new);
     $self->connection->connect($options->{host})
         or croak "Connection establish failed. :$!";
-    
+
     $self->connection->auth_publickey(
         $options->{user},
         "$options->{private_key}.pub",
@@ -54,6 +52,8 @@ sub new {#{{{
     $self->remote_dir($options->{remote_dir});
     $self->cache_dir(Path::Class::Dir->new($options->{local_dir}, 'cache'));
     $self->pdb_dir(Path::Class::Dir->new($options->{local_dir}, 'archive'));
+
+    $self->init_cache; # TODO : to use $self->NEXT::new()
 
     return $self;
 }
@@ -100,10 +100,10 @@ sub _scp_to_local {#{{{
     return 1;
 }
 #}}}
-sub DESTROY {
-    my $self = shift;
-    $self->connection->disconnect();
-}
+#sub DESTROY {
+#    my $self = shift;
+#    $self->connection->disconnect;
+#}
 
 1;
 
