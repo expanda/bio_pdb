@@ -30,8 +30,10 @@ sub new {
 
     while (<$annotation>) {
         chomp;
-        my $row = Bio::PDB::ASA::Row->new($_);
-        push @rows, $row if $row;
+        if (/^(?:ATOM|HETATM)/) {
+            my $row = Bio::PDB::ASA::Row->new($_);
+            push @rows, $row if $row;
+        }
     }
 
     $this->rows(\@rows);
@@ -82,7 +84,7 @@ __PACKAGE__->mk_accessors(qw{
     sub set_savedpos {
         my $pos = shift;
         if ( $pos =~ /\d+/ ) {
-            $savedpos = $pos; 
+            $savedpos = $pos;
         }
         else {
             carp "No Argument - Bio::PDB::ASA::Row#savedpos";
@@ -91,10 +93,10 @@ __PACKAGE__->mk_accessors(qw{
     sub get_savedpos  { return $savedpos; }
 
     sub increment_index {
-        $index++; 
+        $index++;
     }
     sub get_index {
-        return $index; 
+        return $index;
     }
 }
 
@@ -130,7 +132,7 @@ sub new {
 
         set_savedpos($this->position);
     }
-    elsif(/^HETATM/) {
+    elsif (/^HETATM/) {
         {
             no strict 'refs';
             while ( my( $field, $substr) = each %{$fields} ) {
@@ -145,26 +147,6 @@ sub new {
         carp qq{Cannot parse line : $_\n};
         return 0;
     }
-
-#    if (/^ATOM\s+?(\d+?)\s+?(.+?)\s+?(\w{2,3})\s+?(\w{1})\s*(\d+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9.-]+?)\s+?([0-9\.-]{4})\s{0,}([0-9\.-]+?)$/) {
-#        $this->position($5); 
-#        $this->residue($3); 
-#        $this->chain($4); 
-#        $this->asa($10); 
-#        $this->indexnum(get_index()); 
-#        if ( get_savedpos && get_savedpos != $5  ) {
-#            increment_index();
-#        }
-#        set_savedpos($5);
-#    }
-#    elsif (/^ATOM/) {
-#        carp qq{Cannot parse line : $_\n};
-#        return 0;
-#    }
-#    elsif (/^HETATM/) {
-#		 #carp qq{HETATM record is ignored\n};
-#        return 0;
-#    }
 
     return $this;
 }

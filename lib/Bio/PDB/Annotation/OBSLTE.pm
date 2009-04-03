@@ -13,9 +13,9 @@ sub new {
     my $this = bless {}, $class;
 
     if ( $#{$annotations} >= 1 ) {
-        # multiple line. 
+        # multiple line.
         my $tmp_hash = _first_line( +( shift @{$annotations} )->value );
-        carp qq[Bio-PDB does not support multiline OBSLTE!];
+        carp qq[Bio::PDB::Annotation::OBSLTE does not support multiline OBSLTE!];
 
         while ( my ($f, $v) = each %{$tmp_hash} ) {
             no strict 'refs';

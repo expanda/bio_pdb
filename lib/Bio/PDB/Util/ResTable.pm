@@ -69,7 +69,8 @@ sub _load_seqadv {
 
     for my $adv (@{$seqadv->rows}) {
         if (
-            ! defined $self->table_to1->{$adv->res_name} and
+            ( ! defined $self->table_to1->{$adv->res_name} ) and
+            defined $adv->seq_num and defined $adv->db_seq and
             $adv->seq_num == $adv->db_seq
         ) {
             $self->table_to1->{$adv->res_name} = $self->table_to3->{$adv->db_res};

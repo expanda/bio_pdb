@@ -300,8 +300,8 @@ sub asa_score_around {#{{{
     $this->read_asa_score unless $this->asa_stack;
 
     for my $row ( @{$this->asa_stack->rows} ) {
-        $total_asa += $row->asa 
-        if ( $start <= $row->position && $row->position <= $end && $row->chain eq $chain ); 
+        $total_asa += $row->asa
+        if ( $start <= $row->position && $row->position <= $end && $row->chain eq $chain );
     }
 
     return $total_asa;
